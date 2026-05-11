@@ -53,16 +53,13 @@ impl TrisultArgs {
     }
 }
 
-fn identify_context(func: &mut ItemFn) -> Option<Ident> {
+fn identify_attr(func: &mut ItemFn, name: &str) -> Option<Ident> {
     for arg in &mut func.sig.inputs {
         let syn::FnArg::Typed(pat_type) = arg else {
             continue;
         };
 
-        let attr_idx = pat_type
-            .attrs
-            .iter()
-            .position(|a| a.path().is_ident("context"));
+        let attr_idx = pat_type.attrs.iter().position(|a| a.path().is_ident(name));
 
         let Some(idx) = attr_idx else {
             continue;
@@ -151,7 +148,8 @@ pub fn trisult(
     let args = syn::parse_macro_input!(attr as TrisultArgs);
     let mut func = parse_macro_input!(input as ItemFn);
 
-    let context = identify_context(&mut func);
+    let context = identify_attr(&mut func, "context");
+    let kind = identify_attr(&mut func, "kind");
     let macros = quote_macros(context.as_ref());
 
     if args.segment.is_some() && context.is_none() {
@@ -163,25 +161,30 @@ pub fn trisult(
         return quote! { #err #func }.into();
     }
 
-    let prologue = if let Some(context) = &context {
-        let push = args.prologue(context);
-        quote! { #push #macros }
+    let kind = if let Some(kind) = kind {
+        quote! { #kind }
     } else {
-        quote! { #macros }
+        quote! { ::trisult::AccumulatorKind::All }
     };
 
-    let epilogue = if let Some(context) = &context {
-        args.epilogue(context)
-    } else {
-        quote! {}
-    };
+    let push = context
+        .as_ref()
+        .map(|context| args.prologue(context))
+        .unwrap_or_else(|| quote! {});
+    let pop = context
+        .as_ref()
+        .map(|context| args.epilogue(context))
+        .unwrap_or_else(|| quote! {});
+
+    let prologue = quote! { #push #macros };
+    let epilogue = quote! { #pop };
 
     let original_block = &func.block;
     let expanded_block = quote! {
         {
             use ::trisult::ContextStackMut;
 
-            let mut __trisult_diags = ::trisult::Diagnoses::new(::trisult::AccumulatorKind::All);
+            let mut __trisult_diags = ::trisult::Diagnoses::new( #kind );
             let mut __has_errors = false;
 
             #prologue
