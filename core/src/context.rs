@@ -19,9 +19,11 @@ pub trait ContextStackMut: ContextStack {
     /// Captures the current state of the context stack.
     fn capture(&self) -> Self::Captured;
 
-    /// Pushes a new segment onto the context stack, returning the updated stack.
-    #[must_use]
-    fn push(&mut self, segment: Self::Segment) -> Self;
+    /// Pushes a new segment onto the context stack.
+    fn push(&mut self, segment: Self::Segment);
+
+    /// Pops a segment from the context stack.
+    fn pop(&mut self);
 }
 
 /// A zero-sized type representing the absence of contextual location information.
@@ -48,9 +50,10 @@ impl ContextStackMut for NoLoc {
     }
 
     #[inline]
-    fn push(&mut self, _segment: Self::Segment) -> Self {
-        Self
-    }
+    fn push(&mut self, _segment: Self::Segment) {}
+
+    #[inline]
+    fn pop(&mut self) {}
 }
 
 impl<'a, T: ContextStack> ContextStack for &'a T {
