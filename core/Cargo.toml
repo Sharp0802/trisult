@@ -2,6 +2,14 @@
 name = "trisult"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sharp0802/trisult"
+
+categories = ["no-std::no-alloc", "rust-patterns"]
+keywords = ["error-handling", "diagnostics", "result", "validation"]
+readme = "../README.md"
+description = "An accumulating alternative to standard `Result<T, E>`."
 
 [features]
 alloc = ["dep:smallvec"]
