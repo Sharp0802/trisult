@@ -1,5 +1,4 @@
 #![no_std]
-
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::min_ident_chars)]
@@ -10,7 +9,19 @@
 #[cfg(feature = "alloc")]
 const VEC_SIZE: usize = 8;
 
+mod acc;
+mod context;
+mod contextual;
+mod diagnosis;
+mod iter;
+mod traits;
 mod trisult;
 
+pub use acc::*;
+pub use context::*;
+pub use contextual::*;
+pub use diagnosis::*;
+pub use iter::*;
+pub use traits::*;
 pub use trisult::*;
 pub use trisult_derive::*;

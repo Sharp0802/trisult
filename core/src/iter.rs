@@ -1,0 +1,126 @@
+use crate::{AccumulatorState, CapturedContext, Contextual, ContextualDiagnosis, Diagnosis, NoLoc};
+
+#[cfg(feature = "alloc")]
+use crate::VEC_SIZE;
+
+pub struct MapIter<W, E, UW, UE, C, I, FW, FE>
+where
+    C: CapturedContext,
+    I: Iterator<Item = ContextualDiagnosis<W, E, C>>,
+    FW: FnMut(W) -> UW,
+    FE: FnMut(E) -> UE,
+{
+    iter: I,
+    fw: FW,
+    fe: FE,
+}
+
+impl<W, E, UW, UE, C, I, FW, FE> MapIter<W, E, UW, UE, C, I, FW, FE>
+where
+    C: CapturedContext,
+    I: Iterator<Item = ContextualDiagnosis<W, E, C>>,
+    FW: FnMut(W) -> UW,
+    FE: FnMut(E) -> UE,
+{
+    #[inline]
+    pub const fn new(iter: I, fw: FW, fe: FE) -> Self {
+        Self { iter, fw, fe }
+    }
+}
+
+impl<W, E, UW, UE, C, I, FW, FE> Iterator for MapIter<W, E, UW, UE, C, I, FW, FE>
+where
+    C: CapturedContext,
+    I: Iterator<Item = ContextualDiagnosis<W, E, C>>,
+    FW: FnMut(W) -> UW,
+    FE: FnMut(E) -> UE,
+{
+    type Item = ContextualDiagnosis<UW, UE, C>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let diagnosis = self.iter.next()?;
+
+        Some(ContextualDiagnosis::new(
+            diagnosis.context,
+            match diagnosis.value {
+                Diagnosis::Warning(value) => Diagnosis::Warning((self.fw)(value)),
+                Diagnosis::Error(value) => Diagnosis::Error((self.fe)(value)),
+            },
+        ))
+    }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct ContextualIter<'a, T, C: CapturedContext = NoLoc> {
+    source: &'a AccumulatorState<T, C>,
+    index: usize,
+}
+
+impl<'a, T, C: CapturedContext> ContextualIter<'a, T, C> {
+    #[inline]
+    pub(crate) const fn new(source: &'a AccumulatorState<T, C>) -> Self {
+        Self { source, index: 0 }
+    }
+}
+
+impl<'a, T, C: CapturedContext> Iterator for ContextualIter<'a, T, C> {
+    type Item = Contextual<&'a T, &'a C>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let value = match &self.source {
+            #[cfg(feature = "alloc")]
+            AccumulatorState::All(vec) => vec.get(self.index).map(|contextual| contextual.as_ref()),
+            AccumulatorState::Most(Some(value)) if self.index == 0 => Some(value.as_ref()),
+            _ => None,
+        };
+
+        self.index += 1;
+
+        value
+    }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ContextualIntoIter<T, C: CapturedContext = NoLoc> {
+    #[cfg(feature = "alloc")]
+    All(smallvec::IntoIter<Contextual<T, C>, VEC_SIZE>),
+    Most(Option<Contextual<T, C>>),
+}
+
+impl<T, C: CapturedContext> From<AccumulatorState<T, C>> for ContextualIntoIter<T, C> {
+    #[inline]
+    fn from(value: AccumulatorState<T, C>) -> Self {
+        match value {
+            #[cfg(feature = "alloc")]
+            AccumulatorState::All(vec) => Self::All(vec.into_iter()),
+            AccumulatorState::Most(option) => Self::Most(option),
+        }
+    }
+}
+
+impl<T, C: CapturedContext> Iterator for ContextualIntoIter<T, C> {
+    type Item = Contextual<T, C>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            #[cfg(feature = "alloc")]
+            Self::All(iter) => iter.next(),
+            Self::Most(option) => option.take(),
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            #[cfg(feature = "alloc")]
+            Self::All(vec) => vec.size_hint(),
+            Self::Most(Some(_)) => (1, Some(1)),
+            Self::Most(None) => (0, Some(0)),
+        }
+    }
+}
