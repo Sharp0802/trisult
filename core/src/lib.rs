@@ -1,4 +1,6 @@
+#![doc = include_str!("../../README.md")]
 #![no_std]
+#![warn(missing_docs)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::min_ident_chars)]

@@ -2,19 +2,26 @@ use crate::{CapturedContext, Contextual, Contextuals, MapDiagnosis, NoLoc, Prior
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 
+/// The severity level of a diagnosis, determining its accumulation priority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Severity {
+    /// Indicates a non-fatal warning.
     Warning,
+    /// Indicates a fatal error.
     Error,
 }
 
+/// A diagnostic message, representing either a non-fatal warning or a fatal error.
 #[derive(Debug, Clone)]
 pub enum Diagnosis<W, E> {
+    /// A diagnostic warning.
     Warning(W),
+    /// A diagnostic error.
     Error(E),
 }
 
 impl<W, E> Diagnosis<W, E> {
+    /// Returns a reference to the error value if the diagnosis is an `Error`.
     #[inline]
     pub const fn as_error(&self) -> Option<&E> {
         match self {
@@ -23,6 +30,7 @@ impl<W, E> Diagnosis<W, E> {
         }
     }
 
+    /// Returns a reference to the warning value if the diagnosis is a `Warning`.
     #[inline]
     pub const fn as_warning(&self) -> Option<&W> {
         match self {
@@ -84,9 +92,11 @@ impl<W: Error + 'static, E: Error + 'static> Error for Diagnosis<W, E> {
     }
 }
 
+/// A convenience alias for a `Contextual` holding a `Diagnosis`.
 pub type ContextualDiagnosis<W, E, C> = Contextual<Diagnosis<W, E>, C>;
 
 impl<W, E, C: CapturedContext> ContextualDiagnosis<W, E, C> {
+    /// Returns the contained warning, coupled with its context, if it is a `Warning`.
     #[inline]
     pub const fn as_warning(&self) -> Option<Contextual<&W, &C>> {
         match &self.value {
@@ -95,6 +105,7 @@ impl<W, E, C: CapturedContext> ContextualDiagnosis<W, E, C> {
         }
     }
 
+    /// Returns the contained error, coupled with its context, if it is an `Error`.
     #[inline]
     pub const fn as_error(&self) -> Option<Contextual<&E, &C>> {
         match &self.value {
@@ -121,6 +132,7 @@ impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for ContextualDiagnosis<W, E, 
     }
 }
 
+/// A convenience alias for an accumulator of `Diagnosis` items.
 pub type Diagnoses<W, E, C> = Contextuals<Diagnosis<W, E>, C>;
 
 impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for Diagnoses<W, E, C> {
@@ -140,5 +152,11 @@ impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for Diagnoses<W, E, C> {
     }
 }
 
+/// A successful value coupled with any accumulated warnings.
 #[derive(Debug, Clone)]
-pub struct Diagnosed<T, W, C: CapturedContext = NoLoc>(pub T, pub Contextuals<W, C>);
+pub struct Diagnosed<T, W, C: CapturedContext = NoLoc>(
+    /// The successful value.
+    pub T,
+    /// Accumulated warnings that occurred during execution.
+    pub Contextuals<W, C>
+);

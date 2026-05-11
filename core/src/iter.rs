@@ -3,6 +3,7 @@ use crate::{AccumulatorState, CapturedContext, Contextual, ContextualDiagnosis, 
 #[cfg(feature = "alloc")]
 use crate::VEC_SIZE;
 
+/// An iterator that maps the warning and error components of a stream of `ContextualDiagnosis` items.
 pub struct MapIter<W, E, UW, UE, C, I, FW, FE>
 where
     C: CapturedContext,
@@ -22,6 +23,7 @@ where
     FW: FnMut(W) -> UW,
     FE: FnMut(E) -> UE,
 {
+    /// Creates a new `MapIter`.
     #[inline]
     pub const fn new(iter: I, fw: FW, fe: FE) -> Self {
         Self { iter, fw, fe }
@@ -51,6 +53,7 @@ where
     }
 }
 
+/// An iterator over references to items within an `AccumulatorState`.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ContextualIter<'a, T, C: CapturedContext = NoLoc> {
@@ -83,11 +86,14 @@ impl<'a, T, C: CapturedContext> Iterator for ContextualIter<'a, T, C> {
     }
 }
 
+/// An iterator that consumes an `AccumulatorState` and yields its `Contextual` items.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ContextualIntoIter<T, C: CapturedContext = NoLoc> {
+    /// Iterates over all values stored in the `All` variant.
     #[cfg(feature = "alloc")]
     All(smallvec::IntoIter<Contextual<T, C>, VEC_SIZE>),
+    /// Yields at most one value from the `Most` variant.
     Most(Option<Contextual<T, C>>),
 }
 

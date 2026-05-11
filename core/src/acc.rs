@@ -6,21 +6,28 @@ use smallvec::SmallVec;
 #[cfg(feature = "alloc")]
 use crate::VEC_SIZE;
 
+/// Determines how items are accumulated.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AccumulatorKind {
+    /// Accumulates all items pushed into it.
     #[cfg(feature = "alloc")]
     All,
+    /// Accumulates only a single item (e.g. the first or highest priority).
     Most,
 }
 
+/// The internal state of an accumulator.
 #[derive(Debug, Clone)]
 pub enum AccumulatorState<T, C: CapturedContext = NoLoc> {
+    /// Contains all accumulated items.
     #[cfg(feature = "alloc")]
     All(SmallVec<Contextual<T, C>, VEC_SIZE>),
+    /// Contains at most a single item.
     Most(Option<Contextual<T, C>>),
 }
 
 impl<T, C: CapturedContext> AccumulatorState<T, C> {
+    /// Creates a new, empty accumulator state of the specified kind.
     #[inline]
     pub const fn new(kind: AccumulatorKind) -> Self {
         match kind {
@@ -30,6 +37,7 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Returns the kind of this accumulator.
     #[inline]
     pub const fn kind(&self) -> AccumulatorKind {
         match self {
@@ -39,6 +47,7 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Returns `true` if the accumulator contains no items.
     #[inline]
     pub const fn is_empty(&self) -> bool {
         match self {
@@ -48,6 +57,7 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Returns the number of items currently in the accumulator.
     #[inline]
     pub const fn len(&self) -> usize {
         match self {
@@ -63,11 +73,13 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Returns an iterator over the accumulated contextual items.
     #[inline]
     pub const fn iter(&'_ self) -> ContextualIter<'_, T, C> {
         ContextualIter::new(self)
     }
 
+    /// Maps the accumulated values using the given closure.
     #[inline]
     pub fn map<U>(self, map: impl FnMut(T) -> U) -> AccumulatorState<U, C> {
         match self {
@@ -80,6 +92,7 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Reserves capacity for at least `additional` more elements to be inserted.
     #[inline]
     #[cfg(feature = "alloc")]
     pub fn reserve(&mut self, additional: usize) {
@@ -88,6 +101,9 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Pushes a value into the accumulator without checking priorities.
+    /// Returns `true` if the item was added, or `false` if it was ignored
+    /// (e.g., when pushing to an already-occupied `Most` state).
     #[inline]
     pub fn push_naive(&mut self, value: Contextual<T, C>) -> bool {
         match self {
@@ -106,6 +122,8 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Appends the contents of another state into this one naively (ignoring priorities).
+    /// Returns the number of items that were ignored.
     #[inline]
     pub fn append_naive(&mut self, other: Self) -> usize {
         match (self, other) {
@@ -135,6 +153,9 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
 }
 
 impl<T: Prioritized, C: CapturedContext> AccumulatorState<T, C> {
+    /// Pushes a value into the accumulator, respecting item priorities.
+    /// In a `Most` state, an item will overwrite the existing item if it has a strictly higher priority.
+    /// Returns `true` if the item was stored, `false` otherwise.
     #[inline]
     pub fn push(&mut self, value: Contextual<T, C>) -> bool {
         match self {
@@ -158,6 +179,8 @@ impl<T: Prioritized, C: CapturedContext> AccumulatorState<T, C> {
         }
     }
 
+    /// Appends the contents of another state into this one, respecting priorities.
+    /// Returns the number of items that were ignored.
     #[inline]
     pub fn append(&mut self, other: Self) -> usize {
         match (self, other) {

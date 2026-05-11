@@ -1,25 +1,37 @@
 use crate::{CapturedContext, Diagnosed, Diagnoses, Diagnosis, MapDiagnosis, NoLoc};
 use core::fmt::Debug;
 
+/// The core result type of the library, designed to accumulate multiple issues rather than
+/// short-circuiting on the first failure.
+///
+/// A `Trisult` evaluates to either:
+/// - `Ok(Diagnosed)`: Containing a successful value and potentially some non-fatal warnings.
+/// - `Err(Diagnoses)`: Containing accumulated failures (both errors and warnings).
 #[derive(Debug, Clone)]
 #[must_use]
 // NOTE: Not aliasing Result is intended; Trisult MUST be accumulated, NOT be fast failed.
 pub enum Trisult<T, W, E, C: CapturedContext = NoLoc> {
+    /// Represents a success, paired with any warnings that occurred during execution.
     Ok(Diagnosed<T, W, C>),
+    /// Represents a failure, paired with all accumulated diagnostics (errors and warnings).
     Err(Diagnoses<W, E, C>),
 }
 
 impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
+    /// Returns `true` if the trisult is an `Err` value.
     #[inline]
     pub const fn is_err(&self) -> bool {
         matches!(self, Self::Err(..))
     }
 
+    /// Returns `true` if the trisult is an `Ok` value.
     #[inline]
     pub const fn is_ok(&self) -> bool {
         matches!(self, Self::Ok(..))
     }
 
+    /// Converts from `Trisult<T, W, E, C>` to `Option<Diagnoses<W, E, C>>`.
+    /// Returns the `Err` value, consuming the `self` value, or `None` if it was an `Ok`.
     #[inline]
     pub fn err(self) -> Option<Diagnoses<W, E, C>> {
         if let Self::Err(diags) = self {
@@ -29,6 +41,8 @@ impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
         }
     }
 
+    /// Converts from `Trisult<T, W, E, C>` to `Option<Diagnosed<T, W, C>>`.
+    /// Returns the `Ok` value, consuming the `self` value, or `None` if it was an `Err`.
     #[inline]
     pub fn ok(self) -> Option<Diagnosed<T, W, C>> {
         if let Self::Ok(diagnosed) = self {
@@ -38,6 +52,9 @@ impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
         }
     }
 
+    /// Calls `then` if the trisult is `Ok`, otherwise returns the `Err` value of `self`.
+    /// This function accumulates diagnostics, ensuring that warnings from the first step
+    /// are not lost during the chain.
     #[inline]
     pub fn and_then<U, F>(self, then: F) -> Trisult<U, W, E, C>
     where
@@ -61,6 +78,8 @@ impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
         }
     }
 
+    /// Maps a `Trisult<T, W, E, C>` to `Trisult<U, W, E, C>` by applying a function to a
+    /// contained `Ok` success value, leaving an `Err` value untouched.
     #[inline]
     pub fn map<U, F>(self, map: F) -> Trisult<U, W, E, C>
     where
@@ -72,6 +91,8 @@ impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
         }
     }
 
+    /// Unpacks the `Trisult` into a tuple consisting of an optional success value and its
+    /// associated diagnostics. If the result was `Ok`, the diagnostics will contain only warnings.
     #[inline]
     pub fn unpack(self) -> (Option<T>, Diagnoses<W, E, C>) {
         match self {
@@ -114,6 +135,12 @@ impl<T, W, E, C: CapturedContext> From<Trisult<T, W, E, C>>
 }
 
 impl<T, W: Debug, E: Debug, C: CapturedContext> Trisult<T, W, E, C> {
+    /// Returns the contained [`Diagnosed`] value, consuming the `self` value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is an `Err`, with a panic message including the
+    /// passed message, and the content of the `Err`.
     #[allow(clippy::missing_panics_doc)]
     #[inline]
     #[track_caller]
@@ -124,6 +151,13 @@ impl<T, W: Debug, E: Debug, C: CapturedContext> Trisult<T, W, E, C> {
         }
     }
 
+    /// Returns the contained [`Diagnosed`] value, consuming the `self` value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is an `Err`, with a panic message provided by the
+    /// `Err`'s value.
+    #[allow(clippy::missing_panics_doc)]
     #[inline]
     #[track_caller]
     pub fn unwrap(self) -> Diagnosed<T, W, C> {
