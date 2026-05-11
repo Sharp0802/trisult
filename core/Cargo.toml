@@ -16,7 +16,7 @@ alloc = ["dep:smallvec"]
 
 [dependencies]
 smallvec = { version = "2.0.0-alpha.12", optional = true }
-trisult-derive = { path = "../derive", version = "0.1" }
+trisult-macros = { path = "../macros", version = "0.1" }
 
 [dev-dependencies]
 trisult = { path = ".", features = ["alloc"] }

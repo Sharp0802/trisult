@@ -1,8 +1,7 @@
 mod shared;
 
-use trisult::{ContextStackMut, Diagnosed, Diagnosis, Trisult};
-use trisult_derive::{trisult};
 use crate::shared::mock::{MockErr, MockResult, MockWarn, TraceStack};
+use trisult::{trisult, ContextStackMut, Diagnosed, Diagnosis, Trisult};
 
 #[trisult(segment = "happy_node")]
 fn happy_function(#[context] stack: &mut TraceStack) -> MockResult<i32> {
@@ -78,17 +77,17 @@ fn test_sibling_isolation() {
         let trace: Vec<_> = diags.into_iter().collect();
         assert_eq!(trace.len(), 2, "expected 1 warning and 1 error");
 
-        assert_eq!(
-            trace[0].context,
-            "/parent/sibling_1"
-        );
-        assert!(matches!(trace[0].value, Diagnosis::Warning(MockWarn::MinorIssue)));
+        assert_eq!(trace[0].context, "/parent/sibling_1");
+        assert!(matches!(
+            trace[0].value,
+            Diagnosis::Warning(MockWarn::MinorIssue)
+        ));
 
-        assert_eq!(
-            trace[1].context,
-            "/parent/sibling_2"
-        );
-        assert!(matches!(trace[1].value, Diagnosis::Error(MockErr::FatalIssue)));
+        assert_eq!(trace[1].context, "/parent/sibling_2");
+        assert!(matches!(
+            trace[1].value,
+            Diagnosis::Error(MockErr::FatalIssue)
+        ));
     } else {
         panic!("expected Err");
     }

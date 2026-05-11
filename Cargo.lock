@@ -64,11 +64,11 @@ dependencies = [
  "smallvec",
  "thiserror",
  "trisult",
- "trisult-derive",
+ "trisult-macros",
 ]
 
 [[package]]
-name = "trisult-derive"
+name = "trisult-macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

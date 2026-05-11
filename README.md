@@ -48,8 +48,7 @@ which allows you to seamlessly accumulate `warn!` and `error!` diagnostics.
 The macro transforms a function returning an `Option<T>` internally into one that returns a `Trisult`.
 
 ```rust
-use trisult::{Trisult, Diagnosed, NoLoc};
-use trisult_derive::trisult;
+use trisult::{trisult, Trisult, Diagnosed, NoLoc};
 
 // Define your own warning and error types
 #[derive(Debug)]
@@ -110,8 +109,7 @@ This is natively supported by `Trisult` using `CapturedContext`.
 You can pass any type implementing `CapturedContext` as the context parameter to `warn!` or `error!`.
 
 ```rust
-use trisult::{Trisult, NoLoc};
-use trisult_derive::trisult;
+use trisult::{trisult, Trisult, NoLoc};
 
 #[derive(Debug, Clone)]
 pub struct Span(usize, usize);
@@ -144,8 +142,7 @@ the macro will automatically `push` the segment onto the stack before executing 
 and safely `pop` it off upon exiting - even on early returns.
 
 ```rust
-use trisult::{Trisult, ContextStack, ContextStackMut};
-use trisult_derive::trisult;
+use trisult::{trisult, Trisult, ContextStack, ContextStackMut};
 
 // A simple stack that joins string segments with '/'
 #[derive(Debug, Default, Clone)]

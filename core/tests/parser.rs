@@ -3,8 +3,7 @@ mod shared;
 use crate::shared::span::{Offset, Span};
 use std::ops::Deref;
 use thiserror::Error;
-use trisult::{Diagnosed, Diagnosis, Trisult};
-use trisult_derive::trisult;
+use trisult::{trisult, Diagnosed, Diagnosis, Trisult};
 
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ConfigWarn {

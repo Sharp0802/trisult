@@ -26,4 +26,4 @@ pub use diagnosis::*;
 pub use iter::*;
 pub use traits::*;
 pub use trisult::*;
-pub use trisult_derive::*;
+pub use trisult_macros::*;
