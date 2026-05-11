@@ -8,7 +8,7 @@ repository = "https://github.com/sharp0802/trisult"
 
 categories = ["no-std::no-alloc", "rust-patterns"]
 keywords = ["error-handling", "diagnostics", "result", "validation"]
-readme = "../README.md"
+readme = "README.md"
 description = "An accumulating alternative to standard `Result<T, E>`."
 
 [features]
