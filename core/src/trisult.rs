@@ -147,7 +147,7 @@ impl<T, W: Debug, E: Debug, C: CapturedContext> Trisult<T, W, E, C> {
     pub fn expect(self, msg: &str) -> Diagnosed<T, W, C> {
         match self {
             Self::Ok(diag) => diag,
-            Self::Err(err) => panic!("{}: {:?}", msg, err),
+            Self::Err(err) => panic!("{msg}: {err:?}"),
         }
     }
 
