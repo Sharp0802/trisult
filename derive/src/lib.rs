@@ -179,6 +179,8 @@ pub fn trisult(
     let original_block = &func.block;
     let expanded_block = quote! {
         {
+            use ::trisult::ContextStackMut;
+
             let mut __trisult_diags = ::trisult::Diagnoses::new(::trisult::AccumulatorKind::All);
             let mut __has_errors = false;
 
