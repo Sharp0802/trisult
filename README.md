@@ -210,6 +210,69 @@ fn main() {
 }
 ```
 
+### Dynamic Accumulator Selection
+
+Sometimes you want the caller to decide how diagnostics are accumulated at runtime -
+for example, collecting all warnings during a deep analysis (`AccumulatorKind::All`),
+but failing fast and saving memory during a quick validation pass (`AccumulatorKind::Most`).
+
+Instead of duplicating your function,
+you can inject the accumulator kind dynamically by tagging a parameter with `#[kind]`.
+
+The macro will automatically use the caller's argument to initialize the internal state.
+
+> **Note**
+>
+> If the `#[kind]` attribute is omitted, the macro defaults to `AccumulatorKind::All`.
+> Because accumulating multiple diagnostics requires dynamically sized storage,
+> this default requires the `alloc` feature to be enabled in your `Cargo.toml`.
+>
+> If you are working in a strict `#![no_std]` environment without a heap allocator,
+> you must explicitly use `AccumulatorKind::Most` to maintain zero-allocation behaviour.
+
+```rust
+use trisult::{trisult, AccumulatorKind, Trisult, Diagnosed};
+
+// Define your own warning and error types
+#[derive(Debug)]
+pub enum MyWarn { Deprecated, Unconventional }
+
+#[derive(Debug)]
+pub enum MyErr { MissingField, InvalidFormat }
+
+type MyResult<T> = Trisult<T, MyWarn, MyErr>;
+
+#[trisult]
+fn parse_dynamic(
+    #[kind] acc_kind: AccumulatorKind, // Injected at runtime!
+    input: &str
+) -> MyResult<i32> {
+    warn!(MyWarn::MinorIssue);
+    warn!(MyWarn::AnotherIssue);
+    
+    if input.is_empty() {
+        error!(MyErr::FatalIssue);
+        return None;
+    }
+    
+    Some(42)
+}
+
+fn main() {
+    // Caller A: Collect everything
+    let exhaustive_res = parse_dynamic(AccumulatorKind::All, "data");
+    if let Trisult::Ok(Diagnosed(_, warnings)) = exhaustive_res {
+        assert_eq!(warnings.into_iter().count(), 2);
+    }
+
+    // Caller B: Only keep the most severe diagnostic
+    let fast_res = parse_dynamic(AccumulatorKind::Most, "data");
+    if let Trisult::Ok(Diagnosed(_, warnings)) = fast_res {
+        assert_eq!(warnings.into_iter().count(), 1); 
+    }
+}
+```
+
 ## License
 
 This project is licensed under either of
