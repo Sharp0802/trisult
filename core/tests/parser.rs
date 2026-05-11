@@ -1,40 +1,10 @@
-use std::fmt;
+mod shared;
+
+use crate::shared::span::{Offset, Span};
 use std::ops::Deref;
 use thiserror::Error;
 use trisult::{Diagnosed, Diagnosis, Trisult};
 use trisult_derive::trisult;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Line(pub usize);
-
-impl fmt::Display for Line {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "line {}", self.0)
-    }
-}
-
-pub struct Span<'a> {
-    str: &'a str,
-    line: usize,
-}
-
-impl<'a> Span<'a> {
-    pub fn new(str: &'a str, line: usize) -> Self {
-        Self { str, line }
-    }
-
-    pub fn line(&self) -> Line {
-        Line(self.line)
-    }
-}
-
-impl<'a> Deref for Span<'a> {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.str
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ConfigWarn {
@@ -52,7 +22,7 @@ pub enum ConfigErr {
     InvalidFormat(&'static str),
 }
 
-pub type ConfigResult<T> = Trisult<T, ConfigWarn, ConfigErr, Line>;
+pub type ConfigResult<T> = Trisult<T, ConfigWarn, ConfigErr, Offset>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Config {
@@ -65,11 +35,11 @@ fn parse_version(version: Span) -> ConfigResult<i32> {
     match version.deref() {
         "v2" => Some(2),
         "v1" => {
-            warn!(ConfigWarn::Deprecated("v1 is legacy"), version.line());
+            warn!(ConfigWarn::Deprecated("v1 is legacy"), version.at());
             Some(1)
         }
         _ => {
-            error!(ConfigErr::InvalidFormat("Unknown version"), version.line());
+            error!(ConfigErr::InvalidFormat("unknown version"), version.at());
             None
         }
     }
@@ -78,14 +48,14 @@ fn parse_version(version: Span) -> ConfigResult<i32> {
 #[trisult]
 fn parse_name(name: Span) -> ConfigResult<String> {
     if name.is_empty() {
-        error!(ConfigErr::MissingField("name"), name.line());
+        error!(ConfigErr::MissingField("name"), name.at());
         return None;
     }
 
     if name.chars().next().unwrap().is_lowercase() {
         warn!(
             ConfigWarn::Unconventional("Names should be capitalized"),
-            name.line()
+            name.at()
         );
     }
 
@@ -100,29 +70,26 @@ fn parse_config(version: Span, name: Span) -> ConfigResult<Config> {
 }
 
 #[test]
-fn perfect_config() {
+fn test_parse_config() {
     match parse_config(Span::new("v2", 1), Span::new("Alice", 2)) {
         Trisult::Ok(Diagnosed(val, diags)) => {
             assert_eq!(val.version, 2);
             assert_eq!(val.name, "Alice");
-            assert!(
-                diags.is_empty(),
-                "Expected no warnings for a perfect config"
-            );
+            assert!(diags.is_empty());
         }
         Trisult::Err(_) => panic!("Expected Trisult::Ok, but got Trisult::Err"),
     }
 }
 
 #[test]
-fn config_with_warnings() {
+fn test_parse_config_with_warnings() {
     match parse_config(Span::new("v1", 5), Span::new("bob", 6)) {
         Trisult::Ok(Diagnosed(val, diags)) => {
             assert_eq!(val.version, 1);
             assert_eq!(val.name, "bob");
 
             let accumulated_warnings: Vec<_> = diags.iter().collect();
-            assert_eq!(accumulated_warnings.len(), 2, "Expected exactly 2 warnings");
+            assert_eq!(accumulated_warnings.len(), 2);
 
             assert_eq!(accumulated_warnings[0].context.0, 5);
             assert!(matches!(
@@ -141,17 +108,13 @@ fn config_with_warnings() {
 }
 
 #[test]
-fn config_with_error() {
+fn test_parse_config_with_error() {
     match parse_config(Span::new("v1", 10), Span::new("", 11)) {
         Trisult::Ok(_) => panic!("Expected Trisult::Err, but got Trisult::Ok"),
         Trisult::Err(diags) => {
             let accumulated_diags: Vec<_> = diags.iter().collect();
 
-            assert_eq!(
-                accumulated_diags.len(),
-                2,
-                "Expected exactly 2 diagnoses (1 warning, 1 error)"
-            );
+            assert_eq!(accumulated_diags.len(), 2);
 
             assert_eq!(accumulated_diags[0].context.0, 10);
             assert!(matches!(
