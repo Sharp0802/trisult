@@ -83,7 +83,7 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
     let defaults = quote! {
         macro_rules! __impl_warn {
             ($warn:expr, $ctx:expr) => {
-                __trisult_diags.push_naive(::trisult::Contextual::new(
+                __trisult_diags.push(::trisult::Contextual::new(
                     $ctx,
                     ::trisult::Diagnosis::Warning($warn)
                 ));
@@ -92,7 +92,7 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
         macro_rules! __impl_error {
             ($err:expr, $ctx:expr) => {
                 __has_errors = true;
-                __trisult_diags.push_naive(::trisult::Contextual::new(
+                __trisult_diags.push(::trisult::Contextual::new(
                     $ctx,
                     ::trisult::Diagnosis::Error($err)
                 ));
