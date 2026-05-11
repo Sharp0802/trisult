@@ -231,7 +231,7 @@ The macro will automatically use the caller's argument to initialize the interna
 > you must explicitly use `AccumulatorKind::Most` to maintain zero-allocation behaviour.
 
 ```rust
-use trisult::{trisult, AccumulatorKind, Trisult, Diagnosed};
+use trisult::{trisult, AccumulatorKind, Trisult, Diagnosed, NoLoc};
 
 // Define your own warning and error types
 #[derive(Debug)]
@@ -247,11 +247,11 @@ fn parse_dynamic(
     #[kind] acc_kind: AccumulatorKind, // Injected at runtime!
     input: &str
 ) -> MyResult<i32> {
-    warn!(MyWarn::MinorIssue);
-    warn!(MyWarn::AnotherIssue);
+    warn!(MyWarn::Deprecated, NoLoc);
+    warn!(MyWarn::Unconventional, NoLoc);
     
     if input.is_empty() {
-        error!(MyErr::FatalIssue);
+        error!(MyErr::MissingField, NoLoc);
         return None;
     }
     
