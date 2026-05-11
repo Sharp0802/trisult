@@ -38,6 +38,24 @@ impl<W, E> Diagnosis<W, E> {
             Self::Error(_) => None,
         }
     }
+
+    /// Returns the error value, consuming `self` value, if the diagnosis is an `Error`.
+    #[inline]
+    pub fn into_error(self) -> Option<E> {
+        match self {
+            Self::Error(error) => Some(error),
+            Self::Warning(_) => None,
+        }
+    }
+
+    /// Returns the warning value, consuming `self` value, if the diagnosis is a `Warning`.
+    #[inline]
+    pub fn into_warning(self) -> Option<W> {
+        match self {
+            Self::Error(_) => None,
+            Self::Warning(warn) => Some(warn),
+        }
+    }
 }
 
 impl<W, E> Prioritized for Diagnosis<W, E> {
@@ -134,6 +152,18 @@ impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for ContextualDiagnosis<W, E, 
 
 /// A convenience alias for an accumulator of `Diagnosis` items.
 pub type Diagnoses<W, E, C> = Contextuals<Diagnosis<W, E>, C>;
+
+impl<W, E, C: CapturedContext> Diagnoses<W, E, C> {
+    /// Maps `Diagnosis<W, E>` into `W`.
+    ///
+    /// ## Panics
+    ///
+    /// Panics if it contains any error value.
+    #[inline]
+    pub fn unwrap_as_warnings(self) -> Contextuals<W, C> {
+        self.map(|diag| diag.into_warning().unwrap())
+    }
+}
 
 impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for Diagnoses<W, E, C> {
     type Target<UW, UE, FW, FE>

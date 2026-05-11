@@ -20,3 +20,4 @@ trisult-derive = { path = "../derive", version = "0.1" }
 
 [dev-dependencies]
 trisult = { path = ".", features = ["alloc"] }
+thiserror = "2.0"
