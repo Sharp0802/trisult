@@ -110,7 +110,7 @@ impl<'a, T, C: CapturedContext> Iterator for ContextualIter<'a, T, C> {
     }
 }
 
-impl<'a, T, C: CapturedContext> ExactSizeIterator for ContextualIter<'a, T, C> {
+impl<T, C: CapturedContext> ExactSizeIterator for ContextualIter<'_, T, C> {
     #[inline]
     fn len(&self) -> usize {
         self.source.len() - self.index
