@@ -101,7 +101,7 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
                 match $expr {
                     ::trisult::Trisult::Ok(::trisult::Diagnosed(val, diags)) => {
                         if !diags.is_empty() {
-                            __trisult_diags.append(diags.map(::trisult::Diagnosis::Warning));
+                            __trisult_diags.extend(diags.into_iter().map(|diag| diag.map(::trisult::Diagnosis::Warning)));
                         }
                         Some(val)
                     }
