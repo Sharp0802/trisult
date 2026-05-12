@@ -9,7 +9,7 @@
 #![deny(unused_results)]
 
 #[cfg(feature = "alloc")]
-const VEC_SIZE: usize = 8;
+const VEC_SIZE: usize = 2;
 
 mod acc;
 mod context;
