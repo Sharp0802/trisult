@@ -85,6 +85,10 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         match self {
             #[cfg(feature = "alloc")]
             Self::All(vec) => {
+                if vec.is_empty() {
+                    return AccumulatorState::All(SmallVec::new());
+                }
+
                 let mut map = map;
                 AccumulatorState::All(vec.into_iter().map(|ct| ct.map(&mut map)).collect())
             }
