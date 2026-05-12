@@ -61,16 +61,20 @@ impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
         F: FnOnce(T) -> Trisult<U, W, E, C>,
     {
         match self {
-            Self::Ok(Diagnosed(value, mut diags)) => match then(value) {
-                Trisult::Ok(Diagnosed(value, new_diags)) => {
-                    diags.append_naive(new_diags);
-                    Trisult::Ok(Diagnosed(value, diags))
-                }
+            Self::Ok(Diagnosed(value, mut diags)) => {
+                match then(value) {
+                    new if diags.is_empty() => new,
 
-                Trisult::Err(new_diags) => {
-                    let mut diags = diags.map(Diagnosis::Warning);
-                    diags.append(new_diags);
-                    Trisult::Err(diags)
+                    Trisult::Ok(Diagnosed(value, new_diags)) => {
+                        diags.append_naive(new_diags);
+                        Trisult::Ok(Diagnosed(value, diags))
+                    }
+
+                    Trisult::Err(new_diags) => {
+                        let mut diags = diags.map(Diagnosis::Warning);
+                        diags.append(new_diags);
+                        Trisult::Err(diags)
+                    }
                 }
             },
 
