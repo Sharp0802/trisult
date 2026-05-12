@@ -126,6 +126,10 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
     /// Returns the number of items that were ignored.
     #[inline]
     pub fn append_naive(&mut self, other: Self) -> usize {
+        if other.is_empty() {
+            return 0;
+        }
+        
         match (self, other) {
             #[cfg(feature = "alloc")]
             (Self::All(vec), Self::All(mut other)) => {
@@ -183,6 +187,10 @@ impl<T: Prioritized, C: CapturedContext> AccumulatorState<T, C> {
     /// Returns the number of items that were ignored.
     #[inline]
     pub fn append(&mut self, other: Self) -> usize {
+        if other.is_empty() {
+            return 0;
+        }
+        
         match (self, other) {
             #[cfg(feature = "alloc")]
             (Self::All(vec), Self::All(mut other_vec)) => {

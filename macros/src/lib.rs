@@ -100,7 +100,9 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
             ($expr:expr) => {
                 match $expr {
                     ::trisult::Trisult::Ok(::trisult::Diagnosed(val, diags)) => {
-                        __trisult_diags.append(diags.map(::trisult::Diagnosis::Warning));
+                        if !diags.is_empty() {
+                            __trisult_diags.append(diags.map(::trisult::Diagnosis::Warning));
+                        }
                         Some(val)
                     }
                     ::trisult::Trisult::Err(diags) => {
