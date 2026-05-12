@@ -51,6 +51,24 @@ where
             },
         ))
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+impl<W, E, UW, UE, C, I, FW, FE> ExactSizeIterator for MapIter<W, E, UW, UE, C, I, FW, FE>
+where
+    C: CapturedContext,
+    I: ExactSizeIterator<Item = ContextualDiagnosis<W, E, C>>,
+    FW: FnMut(W) -> UW,
+    FE: FnMut(E) -> UE,
+{
+    #[inline]
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
 }
 
 /// An iterator over references to items within an `AccumulatorState`.
@@ -83,6 +101,19 @@ impl<'a, T, C: CapturedContext> Iterator for ContextualIter<'a, T, C> {
         self.index += 1;
 
         value
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<'a, T, C: CapturedContext> ExactSizeIterator for ContextualIter<'a, T, C> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.source.len() - self.index
     }
 }
 
@@ -122,11 +153,19 @@ impl<T, C: CapturedContext> Iterator for ContextualIntoIter<T, C> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<T, C: CapturedContext> ExactSizeIterator for ContextualIntoIter<T, C> {
+    #[inline]
+    fn len(&self) -> usize {
         match self {
             #[cfg(feature = "alloc")]
-            Self::All(vec) => vec.size_hint(),
-            Self::Most(Some(_)) => (1, Some(1)),
-            Self::Most(None) => (0, Some(0)),
+            Self::All(vec) => vec.len(),
+            Self::Most(Some(_)) => 1,
+            Self::Most(None) => 0,
         }
     }
 }
