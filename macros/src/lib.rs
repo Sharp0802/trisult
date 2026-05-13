@@ -107,7 +107,11 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
                     }
                     ::trisult::Trisult::Err(diags) => {
                         __has_errors = true;
-                        __trisult_diags.append(diags);
+                        if __trisult_diags.is_empty() {
+                            __trisult_diags = diags;
+                        } else {
+                            __trisult_diags.append(diags);
+                        }
                         None
                     }
                 }
