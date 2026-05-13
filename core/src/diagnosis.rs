@@ -1,4 +1,6 @@
-use crate::{CapturedContext, Contextual, Contextuals, MapDiagnosis, NoLoc, Prioritized};
+use crate::{
+    AccumulatorState, CapturedContext, Contextual, Contextuals, MapDiagnosis, NoLoc, Prioritized,
+};
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 
@@ -161,7 +163,25 @@ impl<W, E, C: CapturedContext> Diagnoses<W, E, C> {
     /// Panics if it contains any error value.
     #[inline]
     pub fn unwrap_as_warnings(self) -> Contextuals<W, C> {
-        self.map(|diag| diag.into_warning().unwrap())
+        if self.is_empty() {
+            Contextuals::new(AccumulatorState::new(self.kind()))
+        } else {
+            self.map(|diag| diag.into_warning().unwrap())
+        }
+    }
+
+    /// Appends warnings with mapping them to Diagnosis.
+    #[inline]
+    pub fn append_warnings(&mut self, warnings: Contextuals<W, C>) {
+        if warnings.is_empty() {
+            return;
+        }
+
+        self.extend(
+            warnings
+                .into_iter()
+                .map(|diag| diag.map(Diagnosis::Warning)),
+        );
     }
 }
 
@@ -188,5 +208,5 @@ pub struct Diagnosed<T, W, C: CapturedContext = NoLoc>(
     /// The successful value.
     pub T,
     /// Accumulated warnings that occurred during execution.
-    pub Contextuals<W, C>
+    pub Contextuals<W, C>,
 );

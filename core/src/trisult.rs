@@ -61,20 +61,18 @@ impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
         F: FnOnce(T) -> Trisult<U, W, E, C>,
     {
         match self {
-            Self::Ok(Diagnosed(value, mut diags)) => {
-                match then(value) {
-                    new if diags.is_empty() => new,
+            Self::Ok(Diagnosed(value, mut diags)) => match then(value) {
+                new if diags.is_empty() => new,
 
-                    Trisult::Ok(Diagnosed(value, new_diags)) => {
-                        diags.append_naive(new_diags);
-                        Trisult::Ok(Diagnosed(value, diags))
-                    }
+                Trisult::Ok(Diagnosed(value, new_diags)) => {
+                    diags.append_naive(new_diags);
+                    Trisult::Ok(Diagnosed(value, diags))
+                }
 
-                    Trisult::Err(new_diags) => {
-                        let mut diags = diags.map(Diagnosis::Warning);
-                        diags.append(new_diags);
-                        Trisult::Err(diags)
-                    }
+                Trisult::Err(new_diags) => {
+                    let mut diags = diags.map(Diagnosis::Warning);
+                    diags.append(new_diags);
+                    Trisult::Err(diags)
                 }
             },
 
@@ -102,6 +100,39 @@ impl<T, W, E, C: CapturedContext> Trisult<T, W, E, C> {
         match self {
             Self::Ok(Diagnosed(value, diags)) => (Some(value), diags.map(Diagnosis::Warning)),
             Self::Err(value) => (None, value),
+        }
+    }
+
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(clippy::inline_always)]
+    pub fn __macro_tri_unpack(
+        self,
+        diags: &mut Diagnoses<W, E, C>,
+        has_errors: &mut bool,
+    ) -> Option<T> {
+        match self {
+            Self::Ok(Diagnosed(value, warn)) => {
+                // NOTE: LLVM fails to inline this call:
+                // diags.append_warnings(warn);
+
+                if !warn.is_empty() {
+                    diags.extend(warn.into_iter().map(|diag| diag.map(Diagnosis::Warning)));
+                }
+
+                Some(value)
+            }
+
+            Self::Err(err) => {
+                *has_errors = true;
+                if diags.is_empty() {
+                    *diags = err;
+                } else {
+                    diags.append(err);
+                }
+
+                None
+            }
         }
     }
 }

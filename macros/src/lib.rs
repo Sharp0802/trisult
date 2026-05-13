@@ -98,23 +98,7 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
 
         macro_rules! tri {
             ($expr:expr) => {
-                match $expr {
-                    ::trisult::Trisult::Ok(::trisult::Diagnosed(val, diags)) => {
-                        if !diags.is_empty() {
-                            __trisult_diags.extend(diags.into_iter().map(|diag| diag.map(::trisult::Diagnosis::Warning)));
-                        }
-                        Some(val)
-                    }
-                    ::trisult::Trisult::Err(diags) => {
-                        __has_errors = true;
-                        if __trisult_diags.is_empty() {
-                            __trisult_diags = diags;
-                        } else {
-                            __trisult_diags.append(diags);
-                        }
-                        None
-                    }
-                }
+                $expr.__macro_tri_unpack(&mut __trisult_diags, &mut __has_errors)
             };
         }
     };
