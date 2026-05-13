@@ -1,7 +1,7 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
-use trisult::{AccumulatorKind, Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
 use trisult::trisult;
+use trisult::{AccumulatorKind, Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
 
 // --- SHARED TYPES ---
 type ErrorTy = &'static str;
@@ -32,7 +32,6 @@ fn run_std_pipeline(val: u64) -> Result<u64, ErrorTy> {
     std_parse(val).and_then(std_validate).and_then(std_process)
 }
 
-
 // ============================================================================
 // PIPELINE 2: TRISULT MANUAL ACCUMULATION
 // ============================================================================
@@ -46,7 +45,10 @@ fn tri_validate(val: u64) -> Tri<u64> {
         Trisult::Ok(Diagnosed(val, Contextuals::new(AccumulatorKind::All)))
     } else {
         let mut errs = Contextuals::new(AccumulatorKind::All);
-        errs.push_naive(Contextual::new(NoLoc, Diagnosis::Error("validation failed")));
+        errs.push_naive(Contextual::new(
+            NoLoc,
+            Diagnosis::Error("validation failed"),
+        ));
         Trisult::Err(errs)
     }
 }
@@ -58,7 +60,6 @@ fn tri_process(val: u64) -> Tri<u64> {
 fn run_tri_pipeline(val: u64) -> Tri<u64> {
     tri_parse(val).and_then(tri_validate).and_then(tri_process)
 }
-
 
 // ============================================================================
 // PIPELINE 3: TRISULT MACRO
@@ -102,14 +103,13 @@ fn run_mac_pipeline_accumulate(val: u64) -> Tri<u64> {
     v3
 }
 
-
 // ============================================================================
 // BENCHMARK GROUPS
 // ============================================================================
 
 fn bench_pipeline_happy(c: &mut Criterion) {
     let mut group = c.benchmark_group("Pipeline Happy Path");
-    
+
     group.bench_function("std_result", |b| {
         b.iter(|| black_box(run_std_pipeline(black_box(42))))
     });
@@ -131,7 +131,7 @@ fn bench_pipeline_happy(c: &mut Criterion) {
 
 fn bench_pipeline_error(c: &mut Criterion) {
     let mut group = c.benchmark_group("Pipeline Error Path");
-    
+
     // Passing 5 will fail the validate step
     group.bench_function("std_result", |b| {
         b.iter(|| black_box(run_std_pipeline(black_box(5))))
@@ -152,9 +152,5 @@ fn bench_pipeline_error(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    benches,
-    bench_pipeline_happy,
-    bench_pipeline_error
-);
+criterion_group!(benches, bench_pipeline_happy, bench_pipeline_error);
 criterion_main!(benches);

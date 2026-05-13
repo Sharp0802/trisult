@@ -11,6 +11,10 @@ keywords = ["error-handling", "diagnostics", "result", "validation"]
 readme = "README.md"
 description = "An accumulating alternative to standard `Result<T, E>`."
 
+[lib]
+# Disable libtest
+bench = false
+
 [features]
 alloc = ["dep:smallvec"]
 
@@ -21,7 +25,7 @@ trisult-macros = { path = "../macros", version = "0.2" }
 [dev-dependencies]
 trisult = { path = ".", features = ["alloc"] }
 thiserror = "2.0"
-criterion = "0.8"
+criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
 name = "benchmark"
