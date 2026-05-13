@@ -76,14 +76,11 @@ pub struct Contextuals<T, C: CapturedContext = NoLoc> {
 }
 
 impl<T, C: CapturedContext> Contextuals<T, C> {
-    /// Creates a new, empty accumulator of the given kind.
+    /// Creates new, empty accumulator with given state.
     #[inline]
     #[must_use]
-    pub const fn new(kind: AccumulatorKind) -> Self {
-        Self {
-            state: AccumulatorState::new(kind),
-            ignored: 0,
-        }
+    pub const fn new(state: AccumulatorState<T, C>) -> Self {
+        Self { state, ignored: 0 }
     }
 
     /// Returns the kind of accumulator this represents.

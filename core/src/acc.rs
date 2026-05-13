@@ -6,6 +6,34 @@ use smallvec::SmallVec;
 #[cfg(feature = "alloc")]
 use crate::VEC_SIZE;
 
+/// A trait for statically passing accumulator policy.
+pub trait Accumulator {
+    /// Create new, empty accumulator state for given types.
+    fn create_state<T, C: CapturedContext>() -> AccumulatorState<T, C>;
+}
+
+/// An accumulator that collects all items.
+#[cfg(feature = "alloc")]
+pub struct All;
+
+#[cfg(feature = "alloc")]
+impl Accumulator for All {
+    #[inline]
+    fn create_state<T, C: CapturedContext>() -> AccumulatorState<T, C> {
+        AccumulatorState::new(AccumulatorKind::All)
+    }
+}
+
+/// An accumulator that collects only a single item (highest priority).
+pub struct Most;
+
+impl Accumulator for Most {
+    #[inline]
+    fn create_state<T, C: CapturedContext>() -> AccumulatorState<T, C> {
+        AccumulatorState::new(AccumulatorKind::Most)
+    }
+}
+
 /// Determines how items are accumulated.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AccumulatorKind {
@@ -133,7 +161,7 @@ impl<T, C: CapturedContext> AccumulatorState<T, C> {
         if other.is_empty() {
             return 0;
         }
-        
+
         match (self, other) {
             #[cfg(feature = "alloc")]
             (Self::All(vec), Self::All(mut other)) => {
@@ -194,7 +222,7 @@ impl<T: Prioritized, C: CapturedContext> AccumulatorState<T, C> {
         if other.is_empty() {
             return 0;
         }
-        
+
         match (self, other) {
             #[cfg(feature = "alloc")]
             (Self::All(vec), Self::All(mut other_vec)) => {

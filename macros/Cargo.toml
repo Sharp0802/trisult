@@ -13,6 +13,9 @@ description = "A procedural macro module for `trisult`."
 [lib]
 proc-macro = true
 
+[features]
+alloc = []
+
 [dependencies]
 quote = "1"
 proc-macro2 = "1.0"

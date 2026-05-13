@@ -3,7 +3,7 @@ extern crate proc_macro;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, Expr, ItemFn};
+use syn::{Expr, ItemFn, parse_macro_input};
 
 mod keyword {
     syn::custom_keyword!(segment);
@@ -76,6 +76,26 @@ fn identify_attr(func: &mut ItemFn, name: &str) -> Option<Ident> {
     None
 }
 
+fn identify_generic(func: &mut ItemFn, name: &str) -> Option<Ident> {
+    for arg in &mut func.sig.generics.params {
+        let syn::GenericParam::Type(generic) = arg else {
+            continue;
+        };
+
+        let attr_idx = generic.attrs.iter().position(|a| a.path().is_ident(name));
+
+        let Some(idx) = attr_idx else {
+            continue;
+        };
+
+        generic.attrs.remove(idx);
+
+        return Some(generic.ident.clone());
+    }
+
+    None
+}
+
 fn quote_macros(context: Option<&Ident>) -> TokenStream {
     let defaults = quote! {
         macro_rules! __impl_warn {
@@ -139,7 +159,7 @@ pub fn trisult(
     let mut func = parse_macro_input!(input as ItemFn);
 
     let context = identify_attr(&mut func, "context");
-    let kind = identify_attr(&mut func, "kind");
+    let kind = identify_generic(&mut func, "kind");
     let macros = quote_macros(context.as_ref());
 
     if args.segment.is_some() && context.is_none() {
@@ -151,10 +171,13 @@ pub fn trisult(
         return quote! { #err #func }.into();
     }
 
-    let kind = if let Some(kind) = kind {
-        quote! { #kind }
+    let state = if let Some(kind) = kind {
+        quote! { #kind ::create_state() }
     } else {
-        quote! { ::trisult::AccumulatorKind::All }
+        #[cfg(feature = "alloc")]
+        quote! { ::trisult::All::create_state() }
+        #[cfg(not(feature = "alloc"))]
+        quote! { ::trisult::Most::create_state() }
     };
 
     let push = context
@@ -172,9 +195,9 @@ pub fn trisult(
     let original_block = &func.block;
     let expanded_block = quote! {
         {
-            use ::trisult::ContextStackMut;
+            use ::trisult::{Accumulator, ContextStackMut};
 
-            let mut __trisult_diags = ::trisult::Diagnoses::new( #kind );
+            let mut __trisult_diags = ::trisult::Diagnoses::new( #state );
             let mut __has_errors = false;
 
             #prologue

@@ -16,14 +16,13 @@ description = "An accumulating alternative to standard `Result<T, E>`."
 bench = false
 
 [features]
-alloc = ["dep:smallvec"]
+alloc = ["dep:smallvec", "trisult-macros/alloc"]
 
 [dependencies]
 smallvec = { version = "2.0.0-alpha.12", optional = true }
 trisult-macros = { path = "../macros", version = "0.2" }
 
 [dev-dependencies]
-trisult = { path = ".", features = ["alloc"] }
 thiserror = "2.0"
 criterion = { version = "0.8", features = ["html_reports"] }
 
