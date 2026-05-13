@@ -1,7 +1,10 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
-use trisult::trisult;
-use trisult::{AccumulatorKind, Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
+use trisult::{Accumulator, Most, trisult};
+use trisult::{Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
+
+#[cfg(feature = "alloc")]
+use trisult::All;
 
 // --- SHARED TYPES ---
 type ErrorTy = &'static str;
@@ -36,15 +39,15 @@ fn run_std_pipeline(val: u64) -> Result<u64, ErrorTy> {
 // PIPELINE 2: TRISULT MANUAL ACCUMULATION
 // ============================================================================
 
-fn tri_parse(val: u64) -> Tri<u64> {
-    Trisult::Ok(Diagnosed(val + 1, Contextuals::new(AccumulatorKind::All)))
+fn tri_parse<T: Accumulator>(val: u64) -> Tri<u64> {
+    Trisult::Ok(Diagnosed(val + 1, Contextuals::new(T::create_state())))
 }
 
-fn tri_validate(val: u64) -> Tri<u64> {
+fn tri_validate<T: Accumulator>(val: u64) -> Tri<u64> {
     if val > 10 {
-        Trisult::Ok(Diagnosed(val, Contextuals::new(AccumulatorKind::All)))
+        Trisult::Ok(Diagnosed(val, Contextuals::new(T::create_state())))
     } else {
-        let mut errs = Contextuals::new(AccumulatorKind::All);
+        let mut errs = Contextuals::new(T::create_state());
         errs.push_naive(Contextual::new(
             NoLoc,
             Diagnosis::Error("validation failed"),
@@ -53,12 +56,14 @@ fn tri_validate(val: u64) -> Tri<u64> {
     }
 }
 
-fn tri_process(val: u64) -> Tri<u64> {
-    Trisult::Ok(Diagnosed(val * 2, Contextuals::new(AccumulatorKind::All)))
+fn tri_process<T: Accumulator>(val: u64) -> Tri<u64> {
+    Trisult::Ok(Diagnosed(val * 2, Contextuals::new(T::create_state())))
 }
 
-fn run_tri_pipeline(val: u64) -> Tri<u64> {
-    tri_parse(val).and_then(tri_validate).and_then(tri_process)
+fn run_tri_pipeline<T: Accumulator>(val: u64) -> Tri<u64> {
+    tri_parse::<T>(val)
+        .and_then(tri_validate::<T>)
+        .and_then(tri_process::<T>)
 }
 
 // ============================================================================
@@ -66,12 +71,12 @@ fn run_tri_pipeline(val: u64) -> Tri<u64> {
 // ============================================================================
 
 #[trisult]
-fn mac_parse(val: u64) -> Tri<u64> {
+fn mac_parse<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
     Some(val + 1)
 }
 
 #[trisult]
-fn mac_validate(val: u64) -> Tri<u64> {
+fn mac_validate<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
     if val > 10 {
         Some(val)
     } else {
@@ -81,25 +86,25 @@ fn mac_validate(val: u64) -> Tri<u64> {
 }
 
 #[trisult]
-fn mac_process(val: u64) -> Tri<u64> {
+fn mac_process<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
     Some(val * 2)
 }
 
 // Short-circuits using standard `?` on the Option returned by `tri!`
 #[trisult]
-fn run_mac_pipeline_short(val: u64) -> Tri<u64> {
-    let v1 = tri!(mac_parse(val))?;
-    let v2 = tri!(mac_validate(v1))?;
-    let v3 = tri!(mac_process(v2))?;
+fn run_mac_pipeline_short<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
+    let v1 = tri!(mac_parse::<T>(val))?;
+    let v2 = tri!(mac_validate::<T>(v1))?;
+    let v3 = tri!(mac_process::<T>(v2))?;
     Some(v3)
 }
 
 // Accumulates failures (if there were non-fatal ones) using Option::and_then
 #[trisult]
-fn run_mac_pipeline_accumulate(val: u64) -> Tri<u64> {
-    let v1 = tri!(mac_parse(val));
-    let v2 = v1.and_then(|v| tri!(mac_validate(v)));
-    let v3 = v2.and_then(|v| tri!(mac_process(v)));
+fn run_mac_pipeline_accumulate<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
+    let v1 = tri!(mac_parse::<T>(val));
+    let v2 = v1.and_then(|v| tri!(mac_validate::<T>(v)));
+    let v3 = v2.and_then(|v| tri!(mac_process::<T>(v)));
     v3
 }
 
@@ -114,16 +119,31 @@ fn bench_pipeline_happy(c: &mut Criterion) {
         b.iter(|| black_box(run_std_pipeline(black_box(42))))
     });
 
-    group.bench_function("trisult_manual", |b| {
-        b.iter(|| black_box(run_tri_pipeline(black_box(42))))
+    group.bench_function("trisult_manual (most)", |b| {
+        b.iter(|| black_box(run_tri_pipeline::<Most>(black_box(42))))
     });
 
-    group.bench_function("trisult_macro_short", |b| {
-        b.iter(|| black_box(run_mac_pipeline_short(black_box(42))))
+    group.bench_function("trisult_macro_short (most)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_short::<Most>(black_box(42))))
     });
 
-    group.bench_function("trisult_macro_accumulate", |b| {
-        b.iter(|| black_box(run_mac_pipeline_accumulate(black_box(42))))
+    group.bench_function("trisult_macro_accumulate (most)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_accumulate::<Most>(black_box(42))))
+    });
+
+    #[cfg(feature = "alloc")]
+    group.bench_function("trisult_manual (all)", |b| {
+        b.iter(|| black_box(run_tri_pipeline::<All>(black_box(42))))
+    });
+
+    #[cfg(feature = "alloc")]
+    group.bench_function("trisult_macro_short (all)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_short::<All>(black_box(42))))
+    });
+
+    #[cfg(feature = "alloc")]
+    group.bench_function("trisult_macro_accumulate (all)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_accumulate::<All>(black_box(42))))
     });
 
     group.finish();
@@ -137,16 +157,31 @@ fn bench_pipeline_error(c: &mut Criterion) {
         b.iter(|| black_box(run_std_pipeline(black_box(5))))
     });
 
-    group.bench_function("trisult_manual", |b| {
-        b.iter(|| black_box(run_tri_pipeline(black_box(5))))
+    group.bench_function("trisult_manual (most)", |b| {
+        b.iter(|| black_box(run_tri_pipeline::<Most>(black_box(5))))
     });
 
-    group.bench_function("trisult_macro_short", |b| {
-        b.iter(|| black_box(run_mac_pipeline_short(black_box(5))))
+    group.bench_function("trisult_macro_short (most)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_short::<Most>(black_box(5))))
     });
 
-    group.bench_function("trisult_macro_accumulate", |b| {
-        b.iter(|| black_box(run_mac_pipeline_accumulate(black_box(5))))
+    group.bench_function("trisult_macro_accumulate (most)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_accumulate::<Most>(black_box(5))))
+    });
+
+    #[cfg(feature = "alloc")]
+    group.bench_function("trisult_manual (all)", |b| {
+        b.iter(|| black_box(run_tri_pipeline::<All>(black_box(5))))
+    });
+
+    #[cfg(feature = "alloc")]
+    group.bench_function("trisult_macro_short (all)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_short::<All>(black_box(5))))
+    });
+
+    #[cfg(feature = "alloc")]
+    group.bench_function("trisult_macro_accumulate (all)", |b| {
+        b.iter(|| black_box(run_mac_pipeline_accumulate::<All>(black_box(5))))
     });
 
     group.finish();

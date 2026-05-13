@@ -526,7 +526,6 @@ dependencies = [
  "criterion",
  "smallvec",
  "thiserror",
- "trisult",
  "trisult-macros",
 ]
 
