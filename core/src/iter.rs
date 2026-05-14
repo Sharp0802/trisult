@@ -1,7 +1,4 @@
-use crate::{AccumulatorState, CapturedContext, Contextual, ContextualDiagnosis, Diagnosis, NoLoc};
-
-#[cfg(feature = "alloc")]
-use crate::VEC_SIZE;
+use crate::{CapturedContext, Contextual, ContextualDiagnosis, Diagnosis, NoLoc};
 
 /// An iterator that maps the warning and error components of a stream of `ContextualDiagnosis` items.
 pub struct MapIter<W, E, UW, UE, C, I, FW, FE>
@@ -75,13 +72,13 @@ where
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ContextualIter<'a, T, C: CapturedContext = NoLoc> {
-    source: &'a AccumulatorState<T, C>,
+    source: &'a [Contextual<T, C>],
     index: usize,
 }
 
 impl<'a, T, C: CapturedContext> ContextualIter<'a, T, C> {
     #[inline]
-    pub(crate) const fn new(source: &'a AccumulatorState<T, C>) -> Self {
+    pub(crate) const fn new(source: &'a [Contextual<T, C>]) -> Self {
         Self { source, index: 0 }
     }
 }
@@ -91,16 +88,9 @@ impl<'a, T, C: CapturedContext> Iterator for ContextualIter<'a, T, C> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let value = match &self.source {
-            #[cfg(feature = "alloc")]
-            AccumulatorState::All(vec) => vec.get(self.index).map(|contextual| contextual.as_ref()),
-            AccumulatorState::Most(Some(value)) if self.index == 0 => Some(value.as_ref()),
-            _ => None,
-        };
-
+        let value = self.source.get(self.index)?;
         self.index += 1;
-
-        value
+        Some(value.as_ref())
     }
 
     #[inline]
@@ -114,58 +104,5 @@ impl<T, C: CapturedContext> ExactSizeIterator for ContextualIter<'_, T, C> {
     #[inline]
     fn len(&self) -> usize {
         self.source.len() - self.index
-    }
-}
-
-/// An iterator that consumes an `AccumulatorState` and yields its `Contextual` items.
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum ContextualIntoIter<T, C: CapturedContext = NoLoc> {
-    /// Iterates over all values stored in the `All` variant.
-    #[cfg(feature = "alloc")]
-    All(smallvec::IntoIter<Contextual<T, C>, VEC_SIZE>),
-    /// Yields at most one value from the `Most` variant.
-    Most(Option<Contextual<T, C>>),
-}
-
-impl<T, C: CapturedContext> From<AccumulatorState<T, C>> for ContextualIntoIter<T, C> {
-    #[inline]
-    fn from(value: AccumulatorState<T, C>) -> Self {
-        match value {
-            #[cfg(feature = "alloc")]
-            AccumulatorState::All(vec) => Self::All(vec.into_iter()),
-            AccumulatorState::Most(option) => Self::Most(option),
-        }
-    }
-}
-
-impl<T, C: CapturedContext> Iterator for ContextualIntoIter<T, C> {
-    type Item = Contextual<T, C>;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            #[cfg(feature = "alloc")]
-            Self::All(iter) => iter.next(),
-            Self::Most(option) => option.take(),
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len();
-        (len, Some(len))
-    }
-}
-
-impl<T, C: CapturedContext> ExactSizeIterator for ContextualIntoIter<T, C> {
-    #[inline]
-    fn len(&self) -> usize {
-        match self {
-            #[cfg(feature = "alloc")]
-            Self::All(vec) => vec.len(),
-            Self::Most(Some(_)) => 1,
-            Self::Most(None) => 0,
-        }
     }
 }

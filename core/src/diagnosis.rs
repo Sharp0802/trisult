@@ -1,5 +1,6 @@
 use crate::{
-    AccumulatorState, CapturedContext, Contextual, Contextuals, MapDiagnosis, NoLoc, Prioritized,
+    AccAlloc, Accumulator, CapturedContext, Contextual, Contextuals, DefaultAcc, MapDiagnosis,
+    NoLoc, Prioritized,
 };
 use core::error::Error;
 use core::fmt::{Display, Formatter};
@@ -153,18 +154,23 @@ impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for ContextualDiagnosis<W, E, 
 }
 
 /// A convenience alias for an accumulator of `Diagnosis` items.
-pub type Diagnoses<W, E, C> = Contextuals<Diagnosis<W, E>, C>;
+pub type Diagnoses<W, E, C = NoLoc, A = DefaultAcc<Diagnosis<W, E>, C>> =
+    Contextuals<Diagnosis<W, E>, C, A>;
 
-impl<W, E, C: CapturedContext> Diagnoses<W, E, C> {
+impl<W, E, C, A> Diagnoses<W, E, C, A>
+where
+    C: CapturedContext,
+    A: Accumulator<Diagnosis<W, E>, C>,
+{
     /// Maps `Diagnosis<W, E>` into `W`.
     ///
     /// ## Panics
     ///
     /// Panics if it contains any error value.
     #[inline]
-    pub fn unwrap_as_warnings(self) -> Contextuals<W, C> {
+    pub fn unwrap_as_warnings(self) -> Contextuals<W, C, <A::Alloc as AccAlloc>::Acc<W, C>> {
         if self.is_empty() {
-            Contextuals::new(AccumulatorState::new(self.kind()))
+            Contextuals::new(A::Alloc::create_state::<W, C>())
         } else {
             self.map(|diag| diag.into_warning().unwrap())
         }
@@ -185,9 +191,11 @@ impl<W, E, C: CapturedContext> Diagnoses<W, E, C> {
     }
 }
 
-impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for Diagnoses<W, E, C> {
+impl<W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> MapDiagnosis<W, E>
+    for Diagnoses<W, E, C, A>
+{
     type Target<UW, UE, FW, FE>
-        = Diagnoses<UW, UE, C>
+        = Diagnoses<UW, UE, C, <A::Alloc as AccAlloc>::Acc<Diagnosis<UW, UE>, C>>
     where
         FW: FnMut(W) -> UW,
         FE: FnMut(E) -> UE;
@@ -204,9 +212,9 @@ impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for Diagnoses<W, E, C> {
 
 /// A successful value coupled with any accumulated warnings.
 #[derive(Debug, Clone)]
-pub struct Diagnosed<T, W, C: CapturedContext = NoLoc>(
+pub struct Diagnosed<T, W, C: CapturedContext = NoLoc, A: Accumulator<W, C> = DefaultAcc<W, C>>(
     /// The successful value.
     pub T,
     /// Accumulated warnings that occurred during execution.
-    pub Contextuals<W, C>,
+    pub Contextuals<W, C, A>,
 );

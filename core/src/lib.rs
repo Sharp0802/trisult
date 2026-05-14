@@ -7,6 +7,7 @@
 #![warn(clippy::missing_inline_in_public_items)]
 #![warn(clippy::must_use_candidate)]
 #![deny(unused_results)]
+#![allow(clippy::type_complexity)]
 
 #[cfg(feature = "alloc")]
 const VEC_SIZE: usize = 2;
