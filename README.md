@@ -31,8 +31,9 @@ need to collect and report multiple errors and warnings at once.
 - **`#[no_std]` by Default**: Works out-of-the-box in resource-constrained environments
   using zero-allocation accumulators.
 
-- **Optional `alloc` Feature**: Enable the `alloc` feature (backed by `smallvec`) to accumulate
-  an arbitrary number of diagnostics when heap allocation is available.
+- **Optional `alloc`**: Disable the `alloc` feature (backed by `smallvec`) to
+  disable accumulating an arbitrary number of diagnostics when heap allocation is available.
+  (`alloc` is enabled by default)
 
 ## Usage
 
@@ -41,7 +42,6 @@ First, add `trisult` to your `Cargo.toml`:
 ```toml
 [dependencies]
 trisult = "0.1"
-# Optional: features = ["alloc"]
 ```
 
 ### Basic Example
