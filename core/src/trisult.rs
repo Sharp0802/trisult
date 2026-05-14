@@ -49,7 +49,7 @@ impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> Trisult<T,
         }
     }
 
-    /// Converts from `Trisult<T, W, E, C>` to `Option<Diagnosed<T, W, C>>`.
+    /// Converts from `Trisult<T, W, E, C, A>` to `Option<Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>>`.
     /// Returns the `Ok` value, consuming the `self` value, or `None` if it was an `Err`.
     #[inline]
     pub fn ok(self) -> Option<Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>> {
@@ -88,7 +88,7 @@ impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> Trisult<T,
         }
     }
 
-    /// Maps a `Trisult<T, W, E, C>` to `Trisult<U, W, E, C>` by applying a function to a
+    /// Maps a `Trisult<T, W, E, C, A>` to `Trisult<U, W, E, C, A>` by applying a function to a
     /// contained `Ok` success value, leaving an `Err` value untouched.
     #[inline]
     pub fn map<U, F>(self, map: F) -> Trisult<U, W, E, C, A>

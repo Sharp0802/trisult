@@ -103,7 +103,7 @@ where
     C: CapturedContext,
     A: Accumulator<T, C>,
 {
-    /// Creates new, empty accumulator with given state.
+    /// Creates a new, empty accumulator with the given state.
     #[inline]
     #[must_use]
     pub const fn new(state: A) -> Self {

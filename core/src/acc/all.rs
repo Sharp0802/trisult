@@ -3,7 +3,7 @@ use crate::{
 };
 use smallvec::SmallVec;
 
-/// An allocator of accumulator that collects all items.
+/// An allocator for an accumulator that collects all items.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct All;
 

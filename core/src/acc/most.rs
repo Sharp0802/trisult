@@ -1,6 +1,6 @@
 use crate::{AccAlloc, Accumulator, CapturedContext, Contextual, ContextualIter, Prioritized};
 
-/// An allocator of accumulator that collects only a single item (highest priority).
+/// An allocator for an accumulator that collects only a single item (highest priority).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Most;
 

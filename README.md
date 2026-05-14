@@ -236,8 +236,8 @@ custom_trisult!(MyResult<T>(MyWarn, MyErr));
 
 #[trisult]
 fn parse_dynamic<
-    #[kind] T: AccAlloc // injected in compile time
->(input: &str) -> MyResult<i32, T> /* also, allocator type should be injected in result type */ {
+    #[kind] T: AccAlloc // injected at compile time
+>(input: &str) -> MyResult<i32, T> /* also, the allocator type should be injected into the result type */ {
     warn!(MyWarn::Deprecated, NoLoc);
     warn!(MyWarn::Unconventional, NoLoc);
 
@@ -249,7 +249,7 @@ fn parse_dynamic<
     Some(42)
 }
 
-// It doesn't force you to write allocator type everytime.
+// It doesn't force you to write allocator type every time.
 // If it is not specified, it defaults to default allocator:
 #[trisult]
 fn something_other() -> MyResult<()> {
@@ -279,3 +279,4 @@ This project is licensed under either of
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
 
 at your option.
+ option.

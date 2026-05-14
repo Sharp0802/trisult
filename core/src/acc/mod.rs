@@ -13,7 +13,7 @@ type DefaultImpl = all::All;
 #[cfg(not(feature = "alloc"))]
 type DefaultImpl = most::Most;
 
-/// A default accumulators.
+/// Default accumulators.
 ///
 /// Default type is [`AllState`] with `alloc` feature,
 /// Otherwise, default type is [`MostAcc`].
@@ -42,7 +42,7 @@ pub trait Accumulator<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, 
     /// Returns `true` if the accumulator contains no items.
     fn is_empty(&self) -> bool;
 
-    /// Returns the number of item in the accumulator.
+    /// Returns the number of items in the accumulator.
     fn len(&self) -> usize;
 
     /// Returns an iterator over the accumulated contextual items.
@@ -94,7 +94,7 @@ pub trait Accumulator<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, 
 ///
 /// custom_trisult!(MyTrisult1<T>(MyWarn, MyErr));
 /// custom_trisult!(MyTrisult2<T>(MyWarn, MyErr, NoLoc)); // To inject your custom context type
-/// custom_trisult!(MyTrisult3<'a, T, E = MyErr>(&'a str, E)); // Also, arbitary generics can be used
+/// custom_trisult!(MyTrisult3<'a, T, E = MyErr>(&'a str, E)); // Also, arbitrary generics can be used
 /// ```
 #[macro_export]
 macro_rules! custom_trisult {

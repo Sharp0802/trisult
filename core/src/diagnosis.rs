@@ -176,7 +176,7 @@ where
         }
     }
 
-    /// Appends warnings with mapping them to Diagnosis.
+    /// Appends warnings, mapping them to `Diagnosis`.
     #[inline]
     pub fn append_warnings(&mut self, warnings: Contextuals<W, C>) {
         if warnings.is_empty() {

@@ -105,8 +105,7 @@ fn run_mac_pipeline_short<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
 fn run_mac_pipeline_accumulate<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
     let v1 = tri!(mac_parse::<T>(val));
     let v2 = v1.and_then(|v| tri!(mac_validate::<T>(v)));
-    let v3 = v2.and_then(|v| tri!(mac_process::<T>(v)));
-    v3
+    v2.and_then(|v| tri!(mac_process::<T>(v)))
 }
 
 // ============================================================================
