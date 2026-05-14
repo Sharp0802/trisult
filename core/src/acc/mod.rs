@@ -3,15 +3,15 @@ mod all;
 mod most;
 
 #[cfg(feature = "alloc")]
-pub use all::All;
-pub use most::Most;
+pub use all::{All, AllState};
+pub use most::{Most, MostAcc};
 
 use crate::{CapturedContext, Contextual, ContextualIter, Prioritized};
 
 #[cfg(feature = "alloc")]
 type DefaultImpl = all::All;
 #[cfg(not(feature = "alloc"))]
-type DefaultImpl = all::Most;
+type DefaultImpl = most::Most;
 
 /// A default accumulators.
 ///
