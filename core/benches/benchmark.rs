@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
-use trisult::{Accumulator, Most, trisult};
+use trisult::{AccAlloc, Most, custom_trisult, trisult};
 use trisult::{Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
 
 #[cfg(feature = "alloc")]
@@ -9,7 +9,8 @@ use trisult::All;
 // --- SHARED TYPES ---
 type ErrorTy = &'static str;
 type WarnTy = &'static str;
-type Tri<T> = Trisult<T, WarnTy, ErrorTy, NoLoc>;
+
+custom_trisult!(Tri<T>(WarnTy, ErrorTy));
 
 // ============================================================================
 // PIPELINE 1: STANDARD RESULT
@@ -39,11 +40,11 @@ fn run_std_pipeline(val: u64) -> Result<u64, ErrorTy> {
 // PIPELINE 2: TRISULT MANUAL ACCUMULATION
 // ============================================================================
 
-fn tri_parse<T: Accumulator>(val: u64) -> Tri<u64> {
+fn tri_parse<T: AccAlloc>(val: u64) -> Tri<u64, T> {
     Trisult::Ok(Diagnosed(val + 1, Contextuals::new(T::create_state())))
 }
 
-fn tri_validate<T: Accumulator>(val: u64) -> Tri<u64> {
+fn tri_validate<T: AccAlloc>(val: u64) -> Tri<u64, T> {
     if val > 10 {
         Trisult::Ok(Diagnosed(val, Contextuals::new(T::create_state())))
     } else {
@@ -56,11 +57,11 @@ fn tri_validate<T: Accumulator>(val: u64) -> Tri<u64> {
     }
 }
 
-fn tri_process<T: Accumulator>(val: u64) -> Tri<u64> {
+fn tri_process<T: AccAlloc>(val: u64) -> Tri<u64, T> {
     Trisult::Ok(Diagnosed(val * 2, Contextuals::new(T::create_state())))
 }
 
-fn run_tri_pipeline<T: Accumulator>(val: u64) -> Tri<u64> {
+fn run_tri_pipeline<T: AccAlloc>(val: u64) -> Tri<u64, T> {
     tri_parse::<T>(val)
         .and_then(tri_validate::<T>)
         .and_then(tri_process::<T>)
@@ -71,12 +72,12 @@ fn run_tri_pipeline<T: Accumulator>(val: u64) -> Tri<u64> {
 // ============================================================================
 
 #[trisult]
-fn mac_parse<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
+fn mac_parse<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
     Some(val + 1)
 }
 
 #[trisult]
-fn mac_validate<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
+fn mac_validate<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
     if val > 10 {
         Some(val)
     } else {
@@ -86,13 +87,13 @@ fn mac_validate<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
 }
 
 #[trisult]
-fn mac_process<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
+fn mac_process<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
     Some(val * 2)
 }
 
 // Short-circuits using standard `?` on the Option returned by `tri!`
 #[trisult]
-fn run_mac_pipeline_short<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
+fn run_mac_pipeline_short<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
     let v1 = tri!(mac_parse::<T>(val))?;
     let v2 = tri!(mac_validate::<T>(v1))?;
     let v3 = tri!(mac_process::<T>(v2))?;
@@ -101,7 +102,7 @@ fn run_mac_pipeline_short<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
 
 // Accumulates failures (if there were non-fatal ones) using Option::and_then
 #[trisult]
-fn run_mac_pipeline_accumulate<#[kind] T: Accumulator>(val: u64) -> Tri<u64> {
+fn run_mac_pipeline_accumulate<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
     let v1 = tri!(mac_parse::<T>(val));
     let v2 = v1.and_then(|v| tri!(mac_validate::<T>(v)));
     let v3 = v2.and_then(|v| tri!(mac_process::<T>(v)));
