@@ -1,8 +1,10 @@
 extern crate proc_macro;
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro_error::{emit_error, proc_macro_error};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
+use syn::spanned::Spanned;
 use syn::{Expr, ItemFn, parse_macro_input};
 
 mod keyword {
@@ -11,7 +13,7 @@ mod keyword {
 
 #[derive(Default)]
 struct TrisultArgs {
-    segment: Option<Expr>,
+    segment: Option<(Span, Expr)>,
 }
 
 impl Parse for TrisultArgs {
@@ -24,9 +26,9 @@ impl Parse for TrisultArgs {
 
         let lookahead = input.lookahead1();
         if lookahead.peek(keyword::segment) {
-            input.parse::<keyword::segment>()?;
+            let span = input.parse::<keyword::segment>()?.span;
             input.parse::<syn::Token![=]>()?;
-            args.segment = Some(input.parse()?);
+            args.segment = Some((span, input.parse()?));
         } else {
             return Err(lookahead.error());
         }
@@ -37,7 +39,7 @@ impl Parse for TrisultArgs {
 
 impl TrisultArgs {
     fn prologue(&self, ident: &Ident) -> TokenStream {
-        if let Some(segment) = &self.segment {
+        if let Some((_, segment)) = &self.segment {
             quote! { #ident.push( #segment.into() ); }
         } else {
             quote! {}
@@ -142,20 +144,23 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
 
             macro_rules! warn {
                 ($warn:expr, $ctx:expr) => { __impl_warn!($warn, $ctx) };
+                ($warn:expr) => { compile_error!("A `#[context]` argument must be specified to emit diagnosis implicitly"); };
             }
             macro_rules! error {
                 ($err:expr, $ctx:expr) => { __impl_error!($err, $ctx) };
+                ($err:expr) => { compile_error!("A `#[context]` argument must be specified to emit diagnosis implicitly"); };
             }
         }
     }
 }
 
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn trisult(
     attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let args = syn::parse_macro_input!(attr as TrisultArgs);
+    let mut args = syn::parse_macro_input!(attr as TrisultArgs);
     let mut func = parse_macro_input!(input as ItemFn);
 
     let context = identify_attr(&mut func, "context");
@@ -167,13 +172,16 @@ pub fn trisult(
         syn::ReturnType::Type(_, ty) => quote! { #ty },
     };
 
-    if args.segment.is_some() && context.is_none() {
-        let err = syn::Error::new_spanned(
-            &func.sig.ident,
-            "A #[context] argument must be specified to push a stack segment.",
-        )
-        .to_compile_error();
-        return quote! { #err #func }.into();
+    if let Some((span, segment)) = &mut args.segment {
+        if context.is_none() {
+            let source = segment.span().source_text().unwrap_or("<unknown>".into());
+            emit_error!(
+                span, "missing context argument";
+                help = "A `#[context]` argument must be specified to push a stack segment";
+                note = "The segment '{}' needs a context stack to push into", source;
+            );
+            args.segment = None;
+        }
     }
 
     let state = if let Some(kind) = kind {
