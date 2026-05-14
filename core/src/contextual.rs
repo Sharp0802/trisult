@@ -6,7 +6,7 @@ use core::fmt::{Debug, Display, Formatter};
 use core::marker::PhantomData;
 
 /// A value paired with the context in which it was produced.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Contextual<T, C = NoLoc>
 where
@@ -86,7 +86,7 @@ where
 }
 
 /// An contextual accumulator that collects `Contextual` items based on a specific `Accumulator`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Contextuals<T, C = NoLoc, A = DefaultAcc<T, C>>
 where
@@ -113,6 +113,13 @@ where
             _dummy: PhantomData,
         }
     }
+
+    /// Retrieves the number of ignored items.
+    #[inline]
+    #[must_use]
+    pub const fn ignored(&self) -> usize {
+        self.ignored
+    }
 }
 
 impl<T, C, A> Contextuals<T, C, A>
@@ -130,6 +137,12 @@ where
     #[inline]
     pub fn iter(&'_ self) -> ContextualIter<'_, T, C> {
         self.state.iter()
+    }
+
+    /// Returns the number of items in the accumulator.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.state.len()
     }
 
     /// Maps the accumulated values using the given closure.
@@ -253,9 +266,8 @@ where
         }
 
         if self.ignored > 0 {
-            if !self.is_empty() {
-                writeln!(f)?;
-            }
+            // NOTE: it's empty if self.ignored is zero.
+            writeln!(f)?;
 
             write!(f, "... {} ignored", self.ignored)?;
         }

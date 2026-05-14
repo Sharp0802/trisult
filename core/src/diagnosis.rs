@@ -15,7 +15,7 @@ pub enum Severity {
 }
 
 /// A diagnostic message, representing either a non-fatal warning or a fatal error.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Diagnosis<W, E> {
     /// A diagnostic warning.
     Warning(W),
@@ -211,7 +211,7 @@ impl<W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> MapDiagnosis<
 }
 
 /// A successful value coupled with any accumulated warnings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Diagnosed<T, W, C: CapturedContext = NoLoc, A: Accumulator<W, C> = DefaultAcc<W, C>>(
     /// The successful value.
     pub T,
