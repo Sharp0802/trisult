@@ -555,7 +555,7 @@ dependencies = [
 
 [[package]]
 name = "trisult"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "criterion",
  "smallvec",
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "trisult-macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
