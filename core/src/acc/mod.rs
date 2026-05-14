@@ -15,14 +15,14 @@ type DefaultImpl = most::Most;
 
 /// A default accumulators.
 ///
-/// Default type is [`trisult::AllState`] with `alloc` feature,
-/// Otherwise, default type is [`trisult::MostState`].
+/// Default type is [`AllState`] with `alloc` feature,
+/// Otherwise, default type is [`MostAcc`].
 pub type DefaultAcc<T, C> = <DefaultImpl as AccAlloc>::Acc<T, C>;
 
 /// A default allocator for accumulators.
 ///
-/// Default type is [`trisult::All`] with `alloc` feature,
-/// Otherwise, default type is [`trisult::Most`].
+/// Default type is [`All`] with `alloc` feature,
+/// Otherwise, default type is [`Most`].
 pub type Default = DefaultImpl;
 
 /// A trait for statically passing accumulator policy.
