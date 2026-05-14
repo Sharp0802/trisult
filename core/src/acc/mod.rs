@@ -84,19 +84,17 @@ pub trait Accumulator<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, 
 /// You can alias `Trisult<T, MyWarn, MyErr, NoLoc, A = Default>` as:
 ///
 /// ```rust
-/// trisult::custom_trisult!(MyTrisult<T>(MyWarn, MyErr));
-/// ```
+/// use trisult::{custom_trisult, NoLoc};
 ///
-/// To inject your custom context type:
+/// #[derive(Debug)]
+/// pub enum MyWarn { Deprecated, Unconventional }
 ///
-/// ```rust
-/// trisult::custom_trisult!(MyTrisult<T>(MyWarn, MyErr, MyCtx));
-/// ```
+/// #[derive(Debug)]
+/// pub enum MyErr { MissingField, InvalidFormat }
 ///
-/// Also, arbitary generics can be used:
-///
-/// ```rust
-/// trisult::custom_trisult!(MyTrisult<'a, T, E = MyErr>(MyWarn<'a>, E));
+/// custom_trisult!(MyTrisult1<T>(MyWarn, MyErr));
+/// custom_trisult!(MyTrisult2<T>(MyWarn, MyErr, NoLoc)); // To inject your custom context type
+/// custom_trisult!(MyTrisult3<'a, T, E = MyErr>(&'a str, E)); // Also, arbitary generics can be used
 /// ```
 #[macro_export]
 macro_rules! custom_trisult {

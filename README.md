@@ -24,7 +24,7 @@ need to collect and report multiple errors and warnings at once.
 - **Rich Context Tracking**: Tie diagnostics to precise source locations, AST nodes,
   or custom application states using the `CapturedContext` and `ContextStack` traits.
 
-- **Configurable Accumulation**: Control memory usage and verbosity via `AccumulatorKind`. 
+- **Configurable Accumulation**: Control memory usage and verbosity via `AccumulatorKind`.
   Use `All` to collect everything, or `Most` to keep only the highest-priority diagnostic
   (e.g., preserving an `Error` over a `Warning`).
 
@@ -130,7 +130,7 @@ fn parse_with_context(input: &str, span: Span) -> Trisult<String, String, String
         error!("Empty input".to_string(), span);
         return None;
     }
-    
+
     Some(input.to_string())
 }
 ```
@@ -189,7 +189,7 @@ pub type MyResult<T> = Trisult<T, MyWarn, MyErr, String>;
 #[trisult(segment = "child_node")]
 fn parse_child(#[context] stack: &mut TraceStack) -> MyResult<()> {
     warn!(MyWarn::MinorIssue); // Captured as "/parent_node/child_node"
-    
+
     // Early returns safely pop the stack segment
     error!(MyErr::FatalIssue); // Captured as "/parent_node/child_node"
     None
@@ -204,7 +204,7 @@ fn parse_parent(#[context] stack: &mut TraceStack) -> MyResult<()> {
 fn main() {
     let mut stack = TraceStack::default();
     let res = parse_parent(&mut stack);
-    
+
     // The stack is safely popped back to its original state
     assert!(stack.path.is_empty());
 }
@@ -217,21 +217,12 @@ for example, collecting all warnings during a deep analysis (`AccumulatorKind::A
 but failing fast and saving memory during a quick validation pass (`AccumulatorKind::Most`).
 
 Instead of duplicating your function,
-you can inject the accumulator kind dynamically by tagging a parameter with `#[kind]`.
+you can inject the accumulator kind dynamically by tagging a generic parameter with `#[kind]`.
 
-The macro will automatically use the caller's argument to initialize the internal state.
-
-> **Note**
->
-> If the `#[kind]` attribute is omitted, the macro defaults to `AccumulatorKind::All`.
-> Because accumulating multiple diagnostics requires dynamically sized storage,
-> this default requires the `alloc` feature to be enabled in your `Cargo.toml`.
->
-> If you are working in a strict `#![no_std]` environment without a heap allocator,
-> you must explicitly use `AccumulatorKind::Most` to maintain zero-allocation behaviour.
+The macro will automatically use the caller's generic argument to initialize the internal state.
 
 ```rust
-use trisult::{trisult, AccumulatorKind, Trisult, Diagnosed, NoLoc};
+use trisult::{custom_trisult, trisult, AccAlloc, Trisult, Diagnosed, NoLoc, All, Most};
 
 // Define your own warning and error types
 #[derive(Debug)]
@@ -240,35 +231,42 @@ pub enum MyWarn { Deprecated, Unconventional }
 #[derive(Debug)]
 pub enum MyErr { MissingField, InvalidFormat }
 
-type MyResult<T> = Trisult<T, MyWarn, MyErr>;
+// Helper macro to inject allocator of accumulators into result type
+custom_trisult!(MyResult<T>(MyWarn, MyErr));
 
 #[trisult]
-fn parse_dynamic(
-    #[kind] acc_kind: AccumulatorKind, // Injected at runtime!
-    input: &str
-) -> MyResult<i32> {
+fn parse_dynamic<
+    #[kind] T: AccAlloc // injected in compile time
+>(input: &str) -> MyResult<i32, T> /* also, allocator type should be injected in result type */ {
     warn!(MyWarn::Deprecated, NoLoc);
     warn!(MyWarn::Unconventional, NoLoc);
-    
+
     if input.is_empty() {
         error!(MyErr::MissingField, NoLoc);
         return None;
     }
-    
+
     Some(42)
+}
+
+// It doesn't force you to write allocator type everytime.
+// If it is not specified, it defaults to default allocator:
+#[trisult]
+fn something_other() -> MyResult<()> {
+    todo!()
 }
 
 fn main() {
     // Caller A: Collect everything
-    let exhaustive_res = parse_dynamic(AccumulatorKind::All, "data");
+    let exhaustive_res = parse_dynamic::<All>("data");
     if let Trisult::Ok(Diagnosed(_, warnings)) = exhaustive_res {
         assert_eq!(warnings.into_iter().count(), 2);
     }
 
     // Caller B: Only keep the most severe diagnostic
-    let fast_res = parse_dynamic(AccumulatorKind::Most, "data");
+    let fast_res = parse_dynamic::<Most>("data");
     if let Trisult::Ok(Diagnosed(_, warnings)) = fast_res {
-        assert_eq!(warnings.into_iter().count(), 1); 
+        assert_eq!(warnings.into_iter().count(), 1);
     }
 }
 ```
