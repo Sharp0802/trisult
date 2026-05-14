@@ -162,6 +162,11 @@ pub fn trisult(
     let kind = identify_generic(&mut func, "kind");
     let macros = quote_macros(context.as_ref());
 
+    let return_type = match &func.sig.output {
+        syn::ReturnType::Default => quote! { () },
+        syn::ReturnType::Type(_, ty) => quote! { #ty },
+    };
+
     if args.segment.is_some() && context.is_none() {
         let err = syn::Error::new_spanned(
             &func.sig.ident,
@@ -172,12 +177,13 @@ pub fn trisult(
     }
 
     let state = if let Some(kind) = kind {
-        quote! { #kind ::create_state() }
+        quote! { #kind }
     } else {
         #[cfg(feature = "alloc")]
-        quote! { ::trisult::All::create_state() }
+        let tmp = quote! { ::trisult::All };
         #[cfg(not(feature = "alloc"))]
-        quote! { ::trisult::Most::create_state() }
+        let tmp = quote! { ::trisult::Most };
+        tmp
     };
 
     let push = context
@@ -195,9 +201,34 @@ pub fn trisult(
     let original_block = &func.block;
     let expanded_block = quote! {
         {
-            use ::trisult::{Accumulator, ContextStackMut};
+            use ::trisult::{AccAlloc, Accumulator, ContextStackMut};
 
-            let mut __trisult_diags = ::trisult::Diagnoses::new( #state );
+            trait __TrisultInfer {
+                type W;
+                type E;
+                type C: ::trisult::CapturedContext;
+            }
+
+            impl<__T, __W, __E, __C, __A> __TrisultInfer for ::trisult::Trisult<__T, __W, __E, __C, __A>
+            where
+                __C: ::trisult::CapturedContext,
+                __A: ::trisult::Accumulator<::trisult::Diagnosis<__W, __E>, __C>,
+            {
+                type W = __W;
+                type E = __E;
+                type C = __C;
+            }
+
+            let mut __trisult_diags = ::trisult::Diagnoses::new(
+                #state ::create_state::<
+                    ::trisult::Diagnosis<
+                        <#return_type as __TrisultInfer>::W,
+                        <#return_type as __TrisultInfer>::E
+                    >,
+                    <#return_type as __TrisultInfer>::C
+                >()
+            );
+
             let mut __has_errors = false;
 
             #prologue
@@ -209,12 +240,14 @@ pub fn trisult(
 
             #epilogue
 
-            if __has_errors || __trisult_res.is_none() {
+            let __trisult_final: #return_type = if __has_errors || __trisult_res.is_none() {
                 ::trisult::Trisult::Err(__trisult_diags)
             } else {
                 let __warnings = __trisult_diags.unwrap_as_warnings();
                 ::trisult::Trisult::Ok(::trisult::Diagnosed(__trisult_res.unwrap(), __warnings))
-            }
+            };
+
+            __trisult_final
         }
     };
 
