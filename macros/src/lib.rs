@@ -204,6 +204,7 @@ pub fn trisult(
             use ::trisult::{AccAlloc, Accumulator, ContextStackMut};
 
             trait __TrisultInfer {
+                type T;
                 type W;
                 type E;
                 type C: ::trisult::CapturedContext;
@@ -214,6 +215,7 @@ pub fn trisult(
                 __C: ::trisult::CapturedContext,
                 __A: ::trisult::Accumulator<::trisult::Diagnosis<__W, __E>, __C>,
             {
+                type T = __T;
                 type W = __W;
                 type E = __E;
                 type C = __C;
@@ -233,7 +235,7 @@ pub fn trisult(
 
             #prologue
 
-            let mut __trisult_body = || {
+            let mut __trisult_body = || -> core::option::Option<<#return_type as __TrisultInfer>::T> {
                 #original_block
             };
             let __trisult_res = __trisult_body();
