@@ -16,6 +16,7 @@ description = "An accumulating alternative to standard `Result<T, E>`."
 bench = false
 
 [features]
+default = ["alloc"]
 alloc = ["dep:smallvec", "trisult-macros/alloc"]
 
 [dependencies]
