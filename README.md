@@ -14,6 +14,15 @@ need to collect and report multiple errors and warnings at once.
 
 **Trisult** provides a robust, context-aware mechanism for batching these diagnostics without sacrificing ergonomics.
 
+1. [Features](#features)
+2. [Usage](#usage)
+   - [Basic Example](#basic-example)
+   - [Capturing Context](#capturing-context)
+   - [Auto Stacking Contexts](#auto-stacking-contexts)
+   - [Accumulator Selection](#accumulator-selection)
+3. [Performance](#performance)
+4. [License](#license)
+
 ## Features
 
 - **The `Trisult` Enum**: A diagnostic-aware alternative to `Result`.
