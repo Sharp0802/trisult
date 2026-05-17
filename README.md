@@ -298,8 +298,8 @@ fn main() {
 It's strongly recommended to use `Most` accumulator over `All` in performance critical section.
 
 As you can see in benchmark given above,
-While `Most` mode causes only near to 0.6ns overhead per single call,
-`All` mode can cause almost 1.5ns per single call.
+While `Most` mode causes only near to 0.6ns additional overhead over standard result,
+`All` mode can cause almost 1.5ns additional overhead in fast-fail scenario.
 
 ## License
 
