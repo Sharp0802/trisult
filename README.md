@@ -273,6 +273,18 @@ fn main() {
 }
 ```
 
+## Performance
+
+- [Benchmark](https://trisult.sharp0802.com/criterion/report)
+  - Ran on AMD Ryzen 9 9955HX, Linux 6.18.31-1-lts.
+  - See `bench.sh` for more details.
+
+It's strongly recommended to use `Most` accumulator over `All` in performance critical section.
+
+As you can see in benchmark given above,
+While `Most` mode causes only near to 0.6ns overhead per single call,
+`All` mode can cause almost 1.5ns per single call.
+
 ## License
 
 This project is licensed under either of
