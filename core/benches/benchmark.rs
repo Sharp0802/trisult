@@ -148,12 +148,12 @@ macro_rules! decl_bench {
 fn ok(size: usize) -> Vec<i32> {
     let mut x: i32 = 42; // use fixed seed for reproducibility
     let mut vec = vec![0; size];
-    for i in 0..size {
+    for i in &mut vec {
         // do xorshift32
         x ^= x << 13;
         x ^= x >> 17;
         x ^= x << 5;
-        vec[i] = x.abs();
+        *i = x.abs();
     }
     vec
 }

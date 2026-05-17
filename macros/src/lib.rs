@@ -70,7 +70,10 @@ fn identify_attr(func: &mut ItemFn, name: &str) -> Option<Ident> {
             continue;
         };
 
-        let attr_idx = pat_type.attrs.iter().position(|a| a.path().is_ident(name));
+        let attr_idx = pat_type
+            .attrs
+            .iter()
+            .position(|attr| attr.path().is_ident(name));
 
         let Some(idx) = attr_idx else {
             continue;
@@ -93,7 +96,10 @@ fn identify_generic(func: &mut ItemFn, name: &str) -> Option<Ident> {
             continue;
         };
 
-        let attr_idx = generic.attrs.iter().position(|a| a.path().is_ident(name));
+        let attr_idx = generic
+            .attrs
+            .iter()
+            .position(|attr| attr.path().is_ident(name));
 
         let Some(idx) = attr_idx else {
             continue;
@@ -134,33 +140,29 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
         }
     };
 
-    if let Some(ident) = context {
-        quote! {
-            #defaults
+    context.map_or_else(|| quote! {
+        #defaults
 
-            macro_rules! warn {
-                ($warn:expr, $ctx:expr) => { __impl_warn!($warn, $ctx) };
-                ($warn:expr) => { warn!($warn, #ident.capture()) };
-            }
-            macro_rules! error {
-                ($err:expr, $ctx:expr) => { __impl_error!($err, $ctx) };
-                ($err:expr) => { error!($err, #ident.capture()) };
-            }
+        macro_rules! warn {
+            ($warn:expr, $ctx:expr) => { __impl_warn!($warn, $ctx) };
+            ($warn:expr) => { compile_error!("A `#[context]` argument must be specified to emit diagnosis implicitly"); };
         }
-    } else {
-        quote! {
-            #defaults
+        macro_rules! error {
+            ($err:expr, $ctx:expr) => { __impl_error!($err, $ctx) };
+            ($err:expr) => { compile_error!("A `#[context]` argument must be specified to emit diagnosis implicitly"); };
+        }
+    }, |ident| quote! {
+        #defaults
 
-            macro_rules! warn {
-                ($warn:expr, $ctx:expr) => { __impl_warn!($warn, $ctx) };
-                ($warn:expr) => { compile_error!("A `#[context]` argument must be specified to emit diagnosis implicitly"); };
-            }
-            macro_rules! error {
-                ($err:expr, $ctx:expr) => { __impl_error!($err, $ctx) };
-                ($err:expr) => { compile_error!("A `#[context]` argument must be specified to emit diagnosis implicitly"); };
-            }
+        macro_rules! warn {
+            ($warn:expr, $ctx:expr) => { __impl_warn!($warn, $ctx) };
+            ($warn:expr) => { warn!($warn, #ident.capture()) };
         }
-    }
+        macro_rules! error {
+            ($err:expr, $ctx:expr) => { __impl_error!($err, $ctx) };
+            ($err:expr) => { error!($err, #ident.capture()) };
+        }
+    })
 }
 
 #[proc_macro_error]
@@ -183,7 +185,10 @@ pub fn trisult(
 
     if let Some((span, segment)) = &mut args.segment {
         if context.is_none() {
-            let source = segment.span().source_text().unwrap_or("<unknown>".into());
+            let source = segment
+                .span()
+                .source_text()
+                .unwrap_or_else(|| "<unknown>".into());
             emit_error!(
                 span, "missing context argument";
                 help = "A `#[context]` argument must be specified to push a stack segment";
@@ -193,15 +198,16 @@ pub fn trisult(
         }
     }
 
-    let state = if let Some(kind) = kind {
-        quote! { #kind }
-    } else {
-        #[cfg(feature = "alloc")]
-        let tmp = quote! { ::trisult::All };
-        #[cfg(not(feature = "alloc"))]
-        let tmp = quote! { ::trisult::Most };
-        tmp
-    };
+    let state = kind.map_or_else(
+        || {
+            #[cfg(feature = "alloc")]
+            let tmp = quote! { ::trisult::All };
+            #[cfg(not(feature = "alloc"))]
+            let tmp = quote! { ::trisult::Most };
+            tmp
+        },
+        |kind| quote! { #kind },
+    );
 
     let push = context
         .as_ref()
