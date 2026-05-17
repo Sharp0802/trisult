@@ -210,11 +210,11 @@ fn main() {
 }
 ```
 
-### Dynamic Accumulator Selection
+### Accumulator Selection
 
 Sometimes you want the caller to decide how diagnostics are accumulated at runtime -
-for example, collecting all warnings during a deep analysis (`AccumulatorKind::All`),
-but failing fast and saving memory during a quick validation pass (`AccumulatorKind::Most`).
+for example, collecting all warnings during a deep analysis (`trisult::All`),
+but failing fast and saving memory during a quick validation pass (`trisult::Most`).
 
 Instead of duplicating your function,
 you can inject the accumulator kind dynamically by tagging a generic parameter with `#[kind]`.
@@ -279,4 +279,3 @@ This project is licensed under either of
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
 
 at your option.
- option.
