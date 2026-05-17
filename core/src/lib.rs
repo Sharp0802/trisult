@@ -29,4 +29,12 @@ pub use diagnosis::*;
 pub use iter::*;
 pub use traits::*;
 pub use trisult::*;
-pub use trisult_macros::*;
+
+/// Transforms a function to automatically accumulate `Trisult` diagnostics.
+///
+/// This macro provides an ergonomic way to batch diagnostics by generating internal state
+/// to collect `warn!` and `error!` emissions. It conceptually transforms a function
+/// returning an `Option<T>` into one that returns a `Trisult`.
+///
+/// See [`README`](crate) for examples.
+pub use trisult_macros::trisult;
