@@ -1,8 +1,10 @@
-# Trisult &emsp; [![Version]][crates.io] [![License]][crates.io]
+# Trisult &emsp; [![Version]][crates.io] [![License]][crates.io] [![Docs]][crates.io]
 
 [Version]: https://img.shields.io/crates/v/trisult.svg
 [License]: https://img.shields.io/crates/l/trisult.svg
 [crates.io]: https://crates.io/crates/trisult
+[Docs]: https://docs.rs/trisult/badge.svg
+[docs.rs]: https://docs.rs/trisult/latest/trisult
 
 An accumulating alternative to Rust's standard `Result<T, E>`.
 
