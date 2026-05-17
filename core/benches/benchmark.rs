@@ -1,6 +1,6 @@
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::hint::black_box;
-use trisult::{AccAlloc, Most, custom_trisult, trisult};
+use trisult::{custom_trisult, trisult, AccAlloc, Most};
 use trisult::{Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
 
 #[cfg(feature = "alloc")]
@@ -13,179 +13,175 @@ type WarnTy = &'static str;
 custom_trisult!(Tri<T>(WarnTy, ErrorTy));
 
 // ============================================================================
-// PIPELINE 1: STANDARD RESULT
+// IMPLEMENTATIONS
 // ============================================================================
 
-fn std_parse(val: u64) -> Result<u64, ErrorTy> {
-    Ok(val + 1)
-}
+mod result {
+    use super::*;
 
-fn std_validate(val: u64) -> Result<u64, ErrorTy> {
-    if val > 10 {
-        Ok(val)
-    } else {
-        Err("validation failed")
+    pub fn fast_fail(inputs: &[i32]) -> Result<i32, ErrorTy> {
+        let mut ret = 0;
+        for &input in inputs {
+            if input < 0 {
+                return Err("error!");
+            }
+
+            ret += 1;
+        }
+        Ok(ret)
     }
 }
 
-fn std_process(val: u64) -> Result<u64, ErrorTy> {
-    Ok(val * 2)
-}
+mod manual {
+    use super::*;
 
-fn run_std_pipeline(val: u64) -> Result<u64, ErrorTy> {
-    std_parse(val).and_then(std_validate).and_then(std_process)
-}
+    pub fn fast_fail<T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
+        let mut ret = 0;
+        for &input in inputs {
+            if input < 0 {
+                let mut errs = Contextuals::new(T::create_state());
+                errs.push_naive(Contextual::new(NoLoc, Diagnosis::Error("error!")));
+                return Trisult::Err(errs);
+            }
 
-// ============================================================================
-// PIPELINE 2: TRISULT MANUAL ACCUMULATION
-// ============================================================================
+            ret += 1;
+        }
 
-fn tri_parse<T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    Trisult::Ok(Diagnosed(val + 1, Contextuals::new(T::create_state())))
-}
+        Trisult::Ok(Diagnosed(ret, Contextuals::new(T::create_state())))
+    }
 
-fn tri_validate<T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    if val > 10 {
-        Trisult::Ok(Diagnosed(val, Contextuals::new(T::create_state())))
-    } else {
+    pub fn accumulate<T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
         let mut errs = Contextuals::new(T::create_state());
-        errs.push_naive(Contextual::new(
-            NoLoc,
-            Diagnosis::Error("validation failed"),
-        ));
-        Trisult::Err(errs)
+
+        let mut ret = 0;
+        for &input in inputs {
+            if input < 0 {
+                errs.push_naive(Contextual::new(NoLoc, Diagnosis::Error("error!")));
+            }
+
+            ret += 1;
+        }
+
+        if errs.is_empty() {
+            Trisult::Ok(Diagnosed(ret, Contextuals::new(T::create_state())))
+        } else {
+            Trisult::Err(errs)
+        }
     }
 }
 
-fn tri_process<T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    Trisult::Ok(Diagnosed(val * 2, Contextuals::new(T::create_state())))
-}
+mod macros {
+    use super::*;
 
-fn run_tri_pipeline<T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    tri_parse::<T>(val)
-        .and_then(tri_validate::<T>)
-        .and_then(tri_process::<T>)
-}
+    #[trisult]
+    pub fn fast_fail<#[kind] T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
+        let mut ret = 0;
+        for &input in inputs {
+            if input < 0 {
+                error!("error!", NoLoc);
+                return None;
+            }
 
-// ============================================================================
-// PIPELINE 3: TRISULT MACRO
-// ============================================================================
+            ret += 1;
+        }
 
-#[trisult]
-fn mac_parse<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    Some(val + 1)
-}
-
-#[trisult]
-fn mac_validate<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    if val > 10 {
-        Some(val)
-    } else {
-        error!("validation failed", NoLoc);
-        None
+        Some(ret)
     }
-}
 
-#[trisult]
-fn mac_process<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    Some(val * 2)
-}
+    #[trisult]
+    pub fn accumulate<#[kind] T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
+        let mut ret = 0;
+        for &input in inputs {
+            if input < 0 {
+                error!("error!", NoLoc);
+            }
 
-// Short-circuits using standard `?` on the Option returned by `tri!`
-#[trisult]
-fn run_mac_pipeline_short<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    let v1 = tri!(mac_parse::<T>(val))?;
-    let v2 = tri!(mac_validate::<T>(v1))?;
-    let v3 = tri!(mac_process::<T>(v2))?;
-    Some(v3)
-}
+            ret += 1;
+        }
 
-// Accumulates failures (if there were non-fatal ones) using Option::and_then
-#[trisult]
-fn run_mac_pipeline_accumulate<#[kind] T: AccAlloc>(val: u64) -> Tri<u64, T> {
-    let v1 = tri!(mac_parse::<T>(val));
-    let v2 = v1.and_then(|v| tri!(mac_validate::<T>(v)));
-    v2.and_then(|v| tri!(mac_process::<T>(v)))
+        // if failed, it'll be ignored by macro implementation
+        Some(ret)
+    }
 }
 
 // ============================================================================
 // BENCHMARK GROUPS
 // ============================================================================
 
-fn bench_pipeline_happy(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Pipeline Happy Path");
-
-    group.bench_function("std_result", |b| {
-        b.iter(|| black_box(run_std_pipeline(black_box(42))))
-    });
-
-    group.bench_function("trisult_manual (most)", |b| {
-        b.iter(|| black_box(run_tri_pipeline::<Most>(black_box(42))))
-    });
-
-    group.bench_function("trisult_macro_short (most)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_short::<Most>(black_box(42))))
-    });
-
-    group.bench_function("trisult_macro_accumulate (most)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_accumulate::<Most>(black_box(42))))
-    });
-
-    #[cfg(feature = "alloc")]
-    group.bench_function("trisult_manual (all)", |b| {
-        b.iter(|| black_box(run_tri_pipeline::<All>(black_box(42))))
-    });
-
-    #[cfg(feature = "alloc")]
-    group.bench_function("trisult_macro_short (all)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_short::<All>(black_box(42))))
-    });
-
-    #[cfg(feature = "alloc")]
-    group.bench_function("trisult_macro_accumulate (all)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_accumulate::<All>(black_box(42))))
-    });
-
-    group.finish();
+macro_rules! decl_bench {
+    () => {
+        false
+    };
+    (std) => {
+        true
+    };
+    ($fn_name:ident, $name:literal, $input:ident, $callee:ident, $std:literal) => {
+        fn $fn_name(c: &mut Criterion) {
+            let mut group = c.benchmark_group($name);
+            for size in [100, 1000, 10000] {
+                let input: Vec<i32> = $input(size);
+                #[cfg($std)]
+                group.bench_with_input(BenchmarkId::new("Result", size), &input, |b, input| {
+                    b.iter(|| black_box(result::$callee(black_box(input))))
+                });
+                group.bench_with_input(
+                    BenchmarkId::new("Manual/Most", size),
+                    &input,
+                    |b, input| b.iter(|| black_box(manual::$callee::<Most>(black_box(input)))),
+                );
+                #[cfg(feature = "alloc")]
+                group.bench_with_input(BenchmarkId::new("Manual/All", size), &input, |b, input| {
+                    b.iter(|| black_box(manual::$callee::<All>(black_box(input))))
+                });
+                group.bench_with_input(BenchmarkId::new("Macro/Most", size), &input, |b, input| {
+                    b.iter(|| black_box(macros::$callee::<Most>(black_box(input))))
+                });
+                #[cfg(feature = "alloc")]
+                group.bench_with_input(BenchmarkId::new("Macro/All", size), &input, |b, input| {
+                    b.iter(|| black_box(macros::$callee::<All>(black_box(input))))
+                });
+            }
+        }
+    };
 }
 
-fn bench_pipeline_error(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Pipeline Error Path");
-
-    // Passing 5 will fail the validate step
-    group.bench_function("std_result", |b| {
-        b.iter(|| black_box(run_std_pipeline(black_box(5))))
-    });
-
-    group.bench_function("trisult_manual (most)", |b| {
-        b.iter(|| black_box(run_tri_pipeline::<Most>(black_box(5))))
-    });
-
-    group.bench_function("trisult_macro_short (most)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_short::<Most>(black_box(5))))
-    });
-
-    group.bench_function("trisult_macro_accumulate (most)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_accumulate::<Most>(black_box(5))))
-    });
-
-    #[cfg(feature = "alloc")]
-    group.bench_function("trisult_manual (all)", |b| {
-        b.iter(|| black_box(run_tri_pipeline::<All>(black_box(5))))
-    });
-
-    #[cfg(feature = "alloc")]
-    group.bench_function("trisult_macro_short (all)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_short::<All>(black_box(5))))
-    });
-
-    #[cfg(feature = "alloc")]
-    group.bench_function("trisult_macro_accumulate (all)", |b| {
-        b.iter(|| black_box(run_mac_pipeline_accumulate::<All>(black_box(5))))
-    });
-
-    group.finish();
+fn ok(size: usize) -> Vec<i32> {
+    let mut x: i32 = 42; // use fixed seed for reproducibility
+    let mut vec = vec![0; size];
+    for i in 0..size {
+        // do xorshift32
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        vec[i] = x.abs();
+    }
+    vec
 }
 
-criterion_group!(benches, bench_pipeline_happy, bench_pipeline_error);
+fn early_err(size: usize) -> Vec<i32> {
+    let mut vec = ok(size);
+    vec[0] = -1;
+    vec
+}
+
+fn late_err(size: usize) -> Vec<i32> {
+    let mut vec = ok(size);
+    vec[size - 1] = -1;
+    vec
+}
+
+fn all_err(size: usize) -> Vec<i32> {
+    ok(size).into_iter().map(|i| -i).collect()
+}
+
+decl_bench!(success, "Success", ok, fast_fail, true);
+decl_bench!(early_fail, "Early Fail", early_err, fast_fail, true);
+decl_bench!(late_fail, "Late Fail", late_err, fast_fail, true);
+decl_bench!(multi_fail, "Multi Fail", all_err, accumulate, false);
+
+criterion_group!(
+    name = benches;
+    config = Criterion::default();
+    targets = success, early_fail, late_fail, multi_fail
+);
 criterion_main!(benches);
