@@ -52,7 +52,7 @@ First, add `trisult` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-trisult = "0.1"
+trisult = "0.3"
 ```
 
 ### Basic Example
