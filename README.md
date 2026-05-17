@@ -16,7 +16,8 @@ need to collect and report multiple errors and warnings at once.
 
 1. [Features](#features)
 2. [Usage](#usage)
-   - [Basic Example](#basic-example)
+   - [Manual Accumulation](#manual-accumulation)
+   - [The `#[trisult]` Macro](#the-trisult-macro)
    - [Capturing Context](#capturing-context)
    - [Auto Stacking Contexts](#auto-stacking-contexts)
    - [Accumulator Selection](#accumulator-selection)
@@ -55,24 +56,75 @@ First, add `trisult` to your `Cargo.toml`:
 trisult = "0.3"
 ```
 
-### Basic Example
+### Manual Accumulation
 
-The easiest way to use `Trisult` is with the `#[trisult]` macro,
-which allows you to seamlessly accumulate `warn!` and `error!` diagnostics.
+At its core, `Trisult` operates similarly to standard `Result`,
+but with the ability to carry warnings on success,
+and both warnings and errors on failure.
 
-The macro transforms a function returning an `Option<T>` internally into one that returns a `Trisult`.
+You can construct and chain these results manually using idiomatic combinators like `.and_then()` and `.map()`.
+
+```rust
+use trisult::{Trisult, Diagnosed, Diagnosis, Contextuals, Contextual, NoLoc};
+use trisult::{AccAlloc, Default};
+
+// Define your own warning and error types
+#[derive(Debug)]
+pub enum MyWarn { Deprecated }
+
+#[derive(Debug)]
+pub enum MyErr { InvalidFormat }
+
+pub type MyResult<T> = Trisult<T, MyWarn, MyErr, NoLoc>;
+
+fn parse_version(version: &str) -> MyResult<i32> {
+    let mut warnings = Contextuals::new(Default::create_state());
+
+    match version {
+        "v2" => Trisult::Ok(Diagnosed(2, warnings)),
+        "v1" => {
+            // Push a warning but still succeed
+            warnings.push_naive(Contextual::new(NoLoc, MyWarn::Deprecated));
+            Trisult::Ok(Diagnosed(1, warnings))
+        }
+        _ => {
+            // Fail with an error
+            let mut errors = Contextuals::new(Default::create_state());
+            errors.push_naive(Contextual::new(NoLoc, Diagnosis::Error(MyErr::InvalidFormat)));
+            Trisult::Err(errors)
+        }
+    }
+}
+
+fn parse_config(version: &str) -> MyResult<i32> {
+    parse_version(version).and_then(|v| {
+        // Carry on with further processing. Warnings from `parse_version`
+        // are safely preserved and carried forward!
+        Trisult::Ok(Diagnosed(v * 10, Contextuals::new(Default::create_state())))
+    })
+}
+```
+
+### The `#[trisult]` Macro
+
+Constructing and joining accumulators manually can become verbose.
+The `#[trisult]` macro provides an ergonomic way to accumulate `warn!` and `error!` diagnostics,
+drastically reducing boilerplate.
+
+It transforms a function returning an `Option<T>` internally into one that returns a `Trisult`.
+Emitting an `error!` will cause the macro to return `Trisult::Err`
+when the function exits (or immediately if you return `None`),
+while `warn!` simply accumulates in the background.
 
 ```rust
 use trisult::{trisult, Trisult, Diagnosed, NoLoc};
 
-// Define your own warning and error types
 #[derive(Debug)]
 pub enum MyWarn { Deprecated, Unconventional }
 
 #[derive(Debug)]
 pub enum MyErr { MissingField, InvalidFormat }
 
-// A type alias for convenience
 pub type MyResult<T> = Trisult<T, MyWarn, MyErr, NoLoc>;
 
 #[trisult]
@@ -80,14 +132,12 @@ fn parse_version(version: &str) -> MyResult<i32> {
     match version {
         "v2" => Some(2),
         "v1" => {
-            // Emits a non-fatal warning
             warn!(MyWarn::Deprecated, NoLoc);
             Some(1)
         }
         _ => {
-            // Emits a fatal error
             error!(MyErr::InvalidFormat, NoLoc);
-            None
+            None // Early return; macro translates this into a Trisult::Err
         }
     }
 }
@@ -96,15 +146,15 @@ fn parse_version(version: &str) -> MyResult<i32> {
 fn parse_config(version: &str) -> MyResult<i32> {
     // Use `tri!` to unpack sub-operations while accumulating their diagnostics
     let v = tri!(parse_version(version))?;
-    Some(v)
+    Some(v * 10)
 }
 
 fn main() {
     match parse_config("v1") {
         Trisult::Ok(Diagnosed(val, warnings)) => {
-            println!("Success: {}", val); // Prints: 1
+            println!("Success: {}", val); // Prints: 10
             for warn in warnings {
-                println!("Warning: {:?}", warn.value);
+                println!("Warning: {:?}", warn.value); // Prints: Deprecated
             }
         }
         Trisult::Err(diagnoses) => {
@@ -149,7 +199,7 @@ fn parse_with_context(input: &str, span: Span) -> Trisult<String, String, String
 ### Auto Stacking Contexts
 
 For deeply nested parsers or workflows,
-you might want to maintain a "stack trace" of where a diagnostic occurred (e.g. `/parent_node/child_node/attribute`).
+you might want to maintain a "stack trace" of where a diagnostic occurred (e.g. `/parent_node/child_node`).
 `Trisult` provides an auto-stacking feature if your context implements `ContextStackMut`.
 
 By defining a `segment` in the `#[trisult]` macro and identifying your stack argument with `#[context]`,
@@ -159,34 +209,16 @@ and safely `pop` it off upon exiting - even on early returns.
 ```rust
 use trisult::{trisult, Trisult, ContextStack, ContextStackMut};
 
-// A simple stack that joins string segments with '/'
+// Assume `TraceStack` implements `ContextStack` and `ContextStackMut`
+// to join string segments with '/'
 #[derive(Debug, Default, Clone)]
-pub struct TraceStack {
-    pub path: Vec<&'static str>,
-}
-
-impl ContextStack for TraceStack {
-    type Captured = String;
-}
-
+pub struct TraceStack { pub path: Vec<&'static str> }
+impl ContextStack for TraceStack { type Captured = String; }
 impl ContextStackMut for TraceStack {
     type Segment = &'static str;
-
-    fn capture(&self) -> Self::Captured {
-        if self.path.is_empty() {
-            "/".to_string()
-        } else {
-            format!("/{}", self.path.join("/"))
-        }
-    }
-
-    fn push(&mut self, segment: Self::Segment) {
-        self.path.push(segment);
-    }
-
-    fn pop(&mut self) {
-        self.path.pop();
-    }
+    fn capture(&self) -> Self::Captured { format!("/{}", self.path.join("/")) }
+    fn push(&mut self, segment: Self::Segment) { self.path.push(segment); }
+    fn pop(&mut self) { self.path.pop(); }
 }
 
 #[derive(Debug)]
@@ -211,36 +243,25 @@ fn parse_parent(#[context] stack: &mut TraceStack) -> MyResult<()> {
     tri!(parse_child(stack))?;
     Some(())
 }
-
-fn main() {
-    let mut stack = TraceStack::default();
-    let res = parse_parent(&mut stack);
-
-    // The stack is safely popped back to its original state
-    assert!(stack.path.is_empty());
-}
 ```
 
 ### Accumulator Selection
 
-Sometimes you want the caller to decide how diagnostics are accumulated at runtime -
-for example, collecting all warnings during a deep analysis (`trisult::All`),
+Sometimes you want the caller to decide how diagnostics are accumulated at runtime - for example,
+collecting all warnings during a deep analysis (`trisult::All`),
 but failing fast and saving memory during a quick validation pass (`trisult::Most`).
 
-Instead of duplicating your function,
-you can inject the accumulator kind dynamically by tagging a generic parameter with `#[kind]`.
-
+You can inject the accumulator kind dynamically by tagging a generic parameter with `#[kind]`.
 The macro will automatically use the caller's generic argument to initialize the internal state.
 
 ```rust
 use trisult::{custom_trisult, trisult, AccAlloc, Trisult, Diagnosed, NoLoc, All, Most};
 
-// Define your own warning and error types
 #[derive(Debug)]
-pub enum MyWarn { Deprecated, Unconventional }
+pub enum MyWarn { Deprecated }
 
 #[derive(Debug)]
-pub enum MyErr { MissingField, InvalidFormat }
+pub enum MyErr { MissingField }
 
 // Helper macro to inject allocator of accumulators into result type
 custom_trisult!(MyResult<T>(MyWarn, MyErr));
@@ -248,9 +269,8 @@ custom_trisult!(MyResult<T>(MyWarn, MyErr));
 #[trisult]
 fn parse_dynamic<
     #[kind] T: AccAlloc // injected at compile time
->(input: &str) -> MyResult<i32, T> /* also, the allocator type should be injected into the result type */ {
+>(input: &str) -> MyResult<i32, T> {
     warn!(MyWarn::Deprecated, NoLoc);
-    warn!(MyWarn::Unconventional, NoLoc);
 
     if input.is_empty() {
         error!(MyErr::MissingField, NoLoc);
@@ -260,25 +280,12 @@ fn parse_dynamic<
     Some(42)
 }
 
-// It doesn't force you to write allocator type every time.
-// If it is not specified, it defaults to default allocator:
-#[trisult]
-fn something_other() -> MyResult<()> {
-    todo!()
-}
-
 fn main() {
     // Caller A: Collect everything
     let exhaustive_res = parse_dynamic::<All>("data");
-    if let Trisult::Ok(Diagnosed(_, warnings)) = exhaustive_res {
-        assert_eq!(warnings.into_iter().count(), 2);
-    }
 
     // Caller B: Only keep the most severe diagnostic
     let fast_res = parse_dynamic::<Most>("data");
-    if let Trisult::Ok(Diagnosed(_, warnings)) = fast_res {
-        assert_eq!(warnings.into_iter().count(), 1);
-    }
 }
 ```
 
