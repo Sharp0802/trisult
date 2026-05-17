@@ -3,8 +3,8 @@
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use trisult::{
-    AccAlloc, All, ContextStack, ContextStackMut, Contextual, Diagnosed, Diagnoses, Diagnosis,
-    MapDiagnosis, Most, NoLoc, Prioritized, Severity, Trisult, trisult,
+    trisult, AccAlloc, All, ContextStack, ContextStackMut, Contextual, Diagnosed, Diagnoses,
+    Diagnosis, MapDiagnosis, Most, NoLoc, Prioritized, Severity, Trisult,
 };
 
 #[derive(Debug, Clone, PartialEq)]

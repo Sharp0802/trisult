@@ -1,7 +1,7 @@
 #![cfg(feature = "alloc")]
 
 use std::collections::HashMap;
-use trisult::{ContextStack, ContextStackMut, Diagnosed, Diagnosis, Trisult, trisult};
+use trisult::{trisult, ContextStack, ContextStackMut, Diagnosed, Diagnosis, Trisult};
 
 /// A custom context stack to keep track of JSON paths (e.g., `$.tags.[1]`).
 #[derive(Debug, Clone, Default)]
@@ -112,7 +112,7 @@ pub type ValResult<T> = Trisult<T, ValWarn, ValErr, String>;
 #[trisult]
 fn expect_object<'a>(
     value: &'a JsonValue,
-    #[context] path: &mut JsonPath,
+    #[context] _path: &mut JsonPath,
 ) -> ValResult<&'a HashMap<String, JsonValue>> {
     match value {
         JsonValue::Object(obj) => Some(obj),
@@ -127,7 +127,7 @@ fn expect_object<'a>(
 }
 
 #[trisult]
-fn expect_string<'a>(value: &'a JsonValue, #[context] path: &mut JsonPath) -> ValResult<&'a str> {
+fn expect_string<'a>(value: &'a JsonValue, #[context] _path: &mut JsonPath) -> ValResult<&'a str> {
     match value {
         JsonValue::String(s) => Some(s.as_str()),
         _ => {
@@ -141,7 +141,7 @@ fn expect_string<'a>(value: &'a JsonValue, #[context] path: &mut JsonPath) -> Va
 }
 
 #[trisult]
-fn expect_number(value: &JsonValue, #[context] path: &mut JsonPath) -> ValResult<i64> {
+fn expect_number(value: &JsonValue, #[context] _path: &mut JsonPath) -> ValResult<i64> {
     match value {
         JsonValue::Number(n) => Some(*n),
         _ => {

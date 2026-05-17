@@ -1,7 +1,7 @@
 mod shared;
 
 use crate::shared::mock::{MockErr, MockWarn, TraceStack};
-use trisult::{AccAlloc, Default, Diagnosed, Diagnosis, Most, Trisult, trisult};
+use trisult::{trisult, AccAlloc, Default, Diagnosed, Diagnosis, Most, Trisult};
 
 #[cfg(feature = "alloc")]
 use trisult::All;

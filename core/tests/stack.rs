@@ -1,7 +1,7 @@
 mod shared;
 
 use crate::shared::mock::{MockErr, MockResult, MockWarn, TraceStack};
-use trisult::{ContextStackMut, Diagnosed, Diagnosis, Trisult, trisult};
+use trisult::{trisult, ContextStackMut, Diagnosed, Diagnosis, Trisult};
 
 #[trisult(segment = "happy_node")]
 fn happy_function(#[context] stack: &mut TraceStack) -> MockResult<i32> {
