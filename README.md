@@ -1,4 +1,4 @@
-# Trisult &emsp; [![Version]][crates.io] [![License]][crates.io] [![Docs]][crates.io]
+# Trisult &emsp; [![Version]][crates.io] [![License]][crates.io] [![Docs]][docs.rs]
 
 [Version]: https://img.shields.io/crates/v/trisult.svg
 [License]: https://img.shields.io/crates/l/trisult.svg
