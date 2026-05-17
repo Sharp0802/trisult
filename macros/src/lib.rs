@@ -1,11 +1,20 @@
+#![warn(
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::min_ident_chars,
+    clippy::missing_inline_in_public_items,
+    clippy::must_use_candidate
+)]
+#![allow(clippy::type_complexity)]
+
 extern crate proc_macro;
 
-use proc_macro_error::{emit_error, proc_macro_error};
 use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro_error::{emit_error, proc_macro_error};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Expr, ItemFn, parse_macro_input};
+use syn::{parse_macro_input, Expr, ItemFn};
 
 mod keyword {
     syn::custom_keyword!(segment);
@@ -18,7 +27,7 @@ struct TrisultArgs {
 
 impl Parse for TrisultArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut args = TrisultArgs::default();
+        let mut args = Self::default();
 
         if input.is_empty() {
             return Ok(args);
@@ -196,12 +205,10 @@ pub fn trisult(
 
     let push = context
         .as_ref()
-        .map(|context| args.prologue(context))
-        .unwrap_or_else(|| quote! {});
+        .map_or_else(|| quote! {}, |context| args.prologue(context));
     let pop = context
         .as_ref()
-        .map(|context| args.epilogue(context))
-        .unwrap_or_else(|| quote! {});
+        .map_or_else(|| quote! {}, |context| args.epilogue(context));
 
     let prologue = quote! { #push #macros };
     let epilogue = quote! { #pop };

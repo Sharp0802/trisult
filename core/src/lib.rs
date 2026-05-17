@@ -1,11 +1,13 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
-#![warn(missing_docs)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
-#![warn(clippy::min_ident_chars)]
-#![warn(clippy::missing_inline_in_public_items)]
-#![warn(clippy::must_use_candidate)]
+#![warn(
+    missing_docs,
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::min_ident_chars,
+    clippy::missing_inline_in_public_items,
+    clippy::must_use_candidate
+)]
 #![deny(unused_results)]
 #![allow(clippy::type_complexity)]
 
