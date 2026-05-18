@@ -1,6 +1,4 @@
-use crate::{
-    Acc, AccState, CapturedContext, ContextualIter, DefaultAcc, NoLoc, Prioritized,
-};
+use crate::{Acc, AccState, CapturedContext, ContextualIter, Prioritized};
 use core::error::Error;
 use core::fmt::{Debug, Display, Formatter};
 use core::marker::PhantomData;
@@ -8,20 +6,14 @@ use core::marker::PhantomData;
 /// A value paired with the context in which it was produced.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Contextual<T, C = NoLoc>
-where
-    C: CapturedContext,
-{
+pub struct Contextual<T, C: CapturedContext> {
     /// The context associated with the value.
     pub context: C,
     /// The inner value.
     pub value: T,
 }
 
-impl<T, C> Contextual<T, C>
-where
-    C: CapturedContext,
-{
+impl<T, C: CapturedContext> Contextual<T, C> {
     /// Creates a new `Contextual` with the given context and value.
     #[inline]
     pub const fn new(context: C, value: T) -> Self {
@@ -50,11 +42,7 @@ where
     }
 }
 
-impl<T, C> Prioritized for Contextual<T, C>
-where
-    T: Prioritized,
-    C: CapturedContext,
-{
+impl<T: Prioritized, C: CapturedContext> Prioritized for Contextual<T, C> {
     type Priority = T::Priority;
 
     #[inline]
@@ -63,22 +51,14 @@ where
     }
 }
 
-impl<T, C> Display for Contextual<T, C>
-where
-    T: Display,
-    C: CapturedContext,
-{
+impl<T: Display, C: CapturedContext> Display for Contextual<T, C> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}: {}", self.context, self.value)
     }
 }
 
-impl<T, C> Error for Contextual<T, C>
-where
-    T: Error + 'static,
-    C: CapturedContext,
-{
+impl<T: Error + 'static, C: CapturedContext> Error for Contextual<T, C> {
     #[inline]
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         self.value.source()
@@ -88,7 +68,7 @@ where
 /// An contextual accumulator that collects `Contextual` items based on a specific `Accumulator`.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Contextuals<T, C = NoLoc, A = DefaultAcc<T, C>>
+pub struct Contextuals<T, C, A>
 where
     C: CapturedContext,
     A: AccState<T, C>,

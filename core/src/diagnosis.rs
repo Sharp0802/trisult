@@ -1,7 +1,4 @@
-use crate::{
-    Acc, AccState, CapturedContext, Contextual, Contextuals, DefaultAcc, MapDiagnosis,
-    NoLoc, Prioritized,
-};
+use crate::{Acc, AccState, CapturedContext, Contextual, Contextuals, MapDiagnosis, Prioritized};
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 
@@ -154,8 +151,7 @@ impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for ContextualDiagnosis<W, E, 
 }
 
 /// A convenience alias for an accumulator of `Diagnosis` items.
-pub type Diagnoses<W, E, C = NoLoc, A = DefaultAcc<Diagnosis<W, E>, C>> =
-    Contextuals<Diagnosis<W, E>, C, A>;
+pub type Diagnoses<W, E, C, A> = Contextuals<Diagnosis<W, E>, C, A>;
 
 impl<W, E, C, A> Diagnoses<W, E, C, A>
 where
@@ -178,7 +174,7 @@ where
 
     /// Appends warnings, mapping them to `Diagnosis`.
     #[inline]
-    pub fn append_warnings(&mut self, warnings: Contextuals<W, C>) {
+    pub fn append_warnings(&mut self, warnings: Contextuals<W, C, <A::Alloc as Acc>::Acc<W, C>>) {
         if warnings.is_empty() {
             return;
         }
@@ -212,7 +208,7 @@ impl<W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> MapDiagnosis<W, 
 
 /// A successful value coupled with any accumulated warnings.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Diagnosed<T, W, C: CapturedContext = NoLoc, A: AccState<W, C> = DefaultAcc<W, C>>(
+pub struct Diagnosed<T, W, C: CapturedContext, A: AccState<W, C>>(
     /// The successful value.
     pub T,
     /// Accumulated warnings that occurred during execution.

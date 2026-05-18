@@ -1,7 +1,4 @@
-use crate::{
-    Acc, AccState, CapturedContext, DefaultAcc, Diagnosed, Diagnoses, Diagnosis,
-    MapDiagnosis, NoLoc,
-};
+use crate::{Acc, AccState, CapturedContext, Diagnosed, Diagnoses, Diagnosis, MapDiagnosis};
 use core::fmt::Debug;
 
 /// The core result type of the library, designed to accumulate multiple issues rather than
@@ -12,13 +9,7 @@ use core::fmt::Debug;
 /// - `Err(Diagnoses)`: Containing accumulated failures (both errors and warnings).
 #[must_use]
 // NOTE: Not aliasing Result is intended; Trisult MUST be accumulated, NOT be fast failed.
-pub enum Trisult<
-    T,
-    W,
-    E,
-    C: CapturedContext = NoLoc,
-    A: AccState<Diagnosis<W, E>, C> = DefaultAcc<Diagnosis<W, E>, C>,
-> {
+pub enum Trisult<T, W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> {
     /// Represents a success, paired with any warnings that occurred during execution.
     Ok(Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>>),
     /// Represents a failure, paired with all accumulated diagnostics (errors and warnings).

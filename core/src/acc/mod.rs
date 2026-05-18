@@ -9,15 +9,9 @@ pub use most::{Most, MostAcc};
 use crate::{CapturedContext, Contextual, ContextualIter, Prioritized};
 
 #[cfg(feature = "alloc")]
-type DefaultImpl = all::All;
+type DefaultImpl = All;
 #[cfg(not(feature = "alloc"))]
-type DefaultImpl = most::Most;
-
-/// Default accumulators.
-///
-/// Default type is [`AllState`] with `alloc` feature,
-/// Otherwise, default type is [`MostAcc`].
-pub type DefaultAcc<T, C> = <DefaultImpl as Acc>::Acc<T, C>;
+type DefaultImpl = Most;
 
 /// A default allocator for accumulators.
 ///
