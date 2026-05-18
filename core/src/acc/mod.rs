@@ -112,7 +112,7 @@ macro_rules! custom_trisult {
         >;
     };
 
-    ($name:ident< $($tt:tt $(= $val:tt)?),+ >($warn:ty, $err:ty)) => {
-        ::trisult::custom_trisult!{ $name < $($tt $(= $val)?),+ > ($warn, $err, ::trisult::NoLoc) }
+    ($vis:vis $name:ident< $($tt:tt $(= $val:tt)?),+ >($warn:ty, $err:ty)) => {
+        ::trisult::custom_trisult!{ $vis $name < $($tt $(= $val)?),+ > ($warn, $err, ::trisult::NoLoc) }
     };
 }
