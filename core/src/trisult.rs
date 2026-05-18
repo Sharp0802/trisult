@@ -29,7 +29,7 @@ impl<T, W, E, C, A: Acc> Trisult<T, W, E, C, A> {
         matches!(self, Self::Ok(..))
     }
 
-    /// Converts from `Trisult<T, W, E, C>` to `Option<Diagnoses<W, E, C>>`.
+    /// Converts from `Trisult<T, W, E, C, A>` to `Option<Diagnoses<A::Acc<Diagnosis<W, E>, C>>>`.
     /// Returns the `Err` value, consuming the `self` value, or `None` if it was an `Ok`.
     #[inline]
     pub fn err(self) -> Option<Diagnoses<A::Acc<Diagnosis<W, E>, C>>> {
@@ -40,7 +40,7 @@ impl<T, W, E, C, A: Acc> Trisult<T, W, E, C, A> {
         }
     }
 
-    /// Converts from `Trisult<T, W, E, C, A>` to `Option<Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>>`.
+    /// Converts from `Trisult<T, W, E, C, A>` to `Option<Diagnosed<T, A::Acc<W, C>>>`.
     /// Returns the `Ok` value, consuming the `self` value, or `None` if it was an `Err`.
     #[inline]
     pub fn ok(self) -> Option<Diagnosed<T, A::Acc<W, C>>> {

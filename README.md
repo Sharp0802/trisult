@@ -36,7 +36,7 @@ need to collect and report multiple errors and warnings at once.
 - **Rich Context Tracking**: Tie diagnostics to precise source locations, AST nodes,
   or custom application states using the `CapturedContext` and `ContextStack` traits.
 
-- **Configurable Accumulation**: Control memory usage and verbosity via `AccumulatorKind`.
+- **Configurable Accumulation**: Control memory usage and verbosity via the `Acc` trait.
   Use `All` to collect everything, or `Most` to keep only the highest-priority diagnostic
   (e.g., preserving an `Error` over a `Warning`).
 
@@ -66,7 +66,7 @@ You can construct and chain these results manually using idiomatic combinators l
 
 ```rust
 use trisult::{Trisult, Diagnosed, Diagnosis, Contextuals, Contextual, NoLoc};
-use trisult::{AccAlloc, Default};
+use trisult::{Acc, Default};
 
 // Define your own warning and error types
 #[derive(Debug)]
@@ -75,7 +75,7 @@ pub enum MyWarn { Deprecated }
 #[derive(Debug)]
 pub enum MyErr { InvalidFormat }
 
-pub type MyResult<T> = Trisult<T, MyWarn, MyErr, NoLoc>;
+pub type MyResult<T> = Trisult<T, MyWarn, MyErr, NoLoc, Default>;
 
 fn parse_version(version: &str) -> MyResult<i32> {
     let mut warnings = Contextuals::new(Default::create_state());
@@ -117,7 +117,7 @@ when the function exits (or immediately if you return `None`),
 while `warn!` simply accumulates in the background.
 
 ```rust
-use trisult::{trisult, Trisult, Diagnosed, NoLoc};
+use trisult::{trisult, Trisult, Diagnosed, NoLoc, Default};
 
 #[derive(Debug)]
 pub enum MyWarn { Deprecated, Unconventional }
@@ -125,7 +125,7 @@ pub enum MyWarn { Deprecated, Unconventional }
 #[derive(Debug)]
 pub enum MyErr { MissingField, InvalidFormat }
 
-pub type MyResult<T> = Trisult<T, MyWarn, MyErr, NoLoc>;
+pub type MyResult<T> = Trisult<T, MyWarn, MyErr, NoLoc, Default>;
 
 #[trisult]
 fn parse_version(version: &str) -> MyResult<i32> {
@@ -174,7 +174,7 @@ This is natively supported by `Trisult` using `CapturedContext`.
 You can pass any type implementing `CapturedContext` as the context parameter to `warn!` or `error!`.
 
 ```rust
-use trisult::{trisult, Trisult, NoLoc};
+use trisult::{trisult, Trisult, NoLoc, Default};
 
 #[derive(Debug, Clone)]
 pub struct Span(usize, usize);
@@ -186,7 +186,7 @@ impl std::fmt::Display for Span {
 }
 
 #[trisult]
-fn parse_with_context(input: &str, span: Span) -> Trisult<String, String, String, Span> {
+fn parse_with_context(input: &str, span: Span) -> Trisult<String, String, String, Span, Default> {
     if input.is_empty() {
         error!("Empty input".to_string(), span);
         return None;
@@ -207,7 +207,7 @@ the macro will automatically `push` the segment onto the stack before executing 
 and safely `pop` it off upon exiting - even on early returns.
 
 ```rust
-use trisult::{trisult, Trisult, ContextStack, ContextStackMut};
+use trisult::{trisult, Trisult, ContextStack, ContextStackMut, Default};
 
 // Assume `TraceStack` implements `ContextStack` and `ContextStackMut`
 // to join string segments with '/'
@@ -227,7 +227,7 @@ pub enum MyWarn { MinorIssue }
 #[derive(Debug)]
 pub enum MyErr { FatalIssue }
 
-pub type MyResult<T> = Trisult<T, MyWarn, MyErr, String>;
+pub type MyResult<T> = Trisult<T, MyWarn, MyErr, String, Default>;
 
 #[trisult(segment = "child_node")]
 fn parse_child(#[context] stack: &mut TraceStack) -> MyResult<()> {
@@ -251,11 +251,11 @@ Sometimes you want the caller to decide how diagnostics are accumulated at runti
 collecting all warnings during a deep analysis (`trisult::All`),
 but failing fast and saving memory during a quick validation pass (`trisult::Most`).
 
-You can inject the accumulator kind dynamically by tagging a generic parameter with `#[kind]`.
+You can inject the accumulator policy dynamically by tagging a generic parameter with `#[kind]`.
 The macro will automatically use the caller's generic argument to initialize the internal state.
 
 ```rust
-use trisult::{custom_trisult, trisult, AccAlloc, Trisult, Diagnosed, NoLoc, All, Most};
+use trisult::{trisult, Acc, Trisult, Diagnosed, NoLoc, All, Most};
 
 #[derive(Debug)]
 pub enum MyWarn { Deprecated }
@@ -263,12 +263,11 @@ pub enum MyWarn { Deprecated }
 #[derive(Debug)]
 pub enum MyErr { MissingField }
 
-// Helper macro to inject allocator of accumulators into result type
-custom_trisult!(MyResult<T>(MyWarn, MyErr));
+pub type MyResult<T, A> = Trisult<T, MyWarn, MyErr, NoLoc, A>;
 
 #[trisult]
 fn parse_dynamic<
-    #[kind] T: AccAlloc // injected at compile time
+    #[kind] T: Acc // injected at compile time
 >(input: &str) -> MyResult<i32, T> {
     warn!(MyWarn::Deprecated, NoLoc);
 

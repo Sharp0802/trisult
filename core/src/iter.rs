@@ -68,7 +68,7 @@ where
     }
 }
 
-/// An iterator over references to items within an `AccumulatorState`.
+/// An iterator over references to items within an `AccState`.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ContextualIter<'a, T, C> {

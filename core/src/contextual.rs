@@ -64,7 +64,7 @@ impl<T: Error + 'static, C: Debug + Display> Error for Contextual<T, C> {
     }
 }
 
-/// An contextual accumulator that collects `Contextual` items based on a specific `Accumulator`.
+/// A contextual accumulator that collects `Contextual` items based on a specific `AccState`.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Contextuals<A> {

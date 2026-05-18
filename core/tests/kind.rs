@@ -29,7 +29,7 @@ fn test_dynamic_kind_all_warnings() {
         assert_eq!(
             warnings.len(),
             2,
-            "expected 2 warnings with AccumulatorKind::All"
+            "expected 2 warnings with All"
         );
         assert_eq!(warnings[0].context, "/warn_node");
         assert_eq!(warnings[1].context, "/warn_node");
@@ -50,7 +50,7 @@ fn test_dynamic_kind_most_warnings() {
         assert_eq!(
             warnings.len(),
             1,
-            "expected 1 warning with AccumulatorKind::Most"
+            "expected 1 warning with Most"
         );
     } else {
         panic!("expected Ok");
@@ -76,7 +76,7 @@ fn test_dynamic_kind_all_mixed() {
         assert_eq!(
             trace.len(),
             2,
-            "expected 2 diagnostics with AccumulatorKind::All"
+            "expected 2 diagnostics with All"
         );
 
         assert!(matches!(
@@ -103,7 +103,7 @@ fn test_dynamic_kind_most_mixed_upgrades_priority() {
         assert_eq!(
             trace.len(),
             1,
-            "expected exactly 1 diagnostic with AccumulatorKind::Most"
+            "expected exactly 1 diagnostic with Most"
         );
 
         assert!(matches!(
@@ -134,7 +134,7 @@ fn test_default_kind_is_all() {
         assert_eq!(
             warnings.len(),
             2,
-            "fallback should default to AccumulatorKind::All"
+            "fallback should default to All"
         );
     } else {
         panic!("expected Ok");
