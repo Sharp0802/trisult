@@ -1,4 +1,4 @@
-use crate::{AccAlloc, Accumulator, CapturedContext, Contextual, ContextualIter, Prioritized};
+use crate::{Acc, AccState, CapturedContext, Contextual, ContextualIter, Prioritized};
 
 /// An allocator for an accumulator that collects only a single item (highest priority).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -7,7 +7,7 @@ pub struct Most;
 /// An accumulator that collects only a single item (highest priority).
 pub type MostAcc<T, C> = Option<Contextual<T, C>>;
 
-impl AccAlloc for Most {
+impl Acc for Most {
     type Acc<T, C: CapturedContext> = MostAcc<T, C>;
 
     #[inline]
@@ -16,7 +16,7 @@ impl AccAlloc for Most {
     }
 }
 
-impl<T, C: CapturedContext> Accumulator<T, C> for MostAcc<T, C> {
+impl<T, C: CapturedContext> AccState<T, C> for MostAcc<T, C> {
     type Alloc = Most;
 
     #[inline]
@@ -35,7 +35,7 @@ impl<T, C: CapturedContext> Accumulator<T, C> for MostAcc<T, C> {
     }
 
     #[inline]
-    fn map<U>(self, map: impl FnMut(T) -> U) -> <Self::Alloc as AccAlloc>::Acc<U, C> {
+    fn map<U>(self, map: impl FnMut(T) -> U) -> <Self::Alloc as Acc>::Acc<U, C> {
         self.map(|ct| ct.map(map))
     }
 

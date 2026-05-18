@@ -1,5 +1,5 @@
 use crate::{
-    AccAlloc, Accumulator, CapturedContext, DefaultAcc, Diagnosed, Diagnoses, Diagnosis,
+    Acc, AccState, CapturedContext, DefaultAcc, Diagnosed, Diagnoses, Diagnosis,
     MapDiagnosis, NoLoc,
 };
 use core::fmt::Debug;
@@ -17,15 +17,15 @@ pub enum Trisult<
     W,
     E,
     C: CapturedContext = NoLoc,
-    A: Accumulator<Diagnosis<W, E>, C> = DefaultAcc<Diagnosis<W, E>, C>,
+    A: AccState<Diagnosis<W, E>, C> = DefaultAcc<Diagnosis<W, E>, C>,
 > {
     /// Represents a success, paired with any warnings that occurred during execution.
-    Ok(Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>),
+    Ok(Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>>),
     /// Represents a failure, paired with all accumulated diagnostics (errors and warnings).
     Err(Diagnoses<W, E, C, A>),
 }
 
-impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> Trisult<T, W, E, C, A> {
+impl<T, W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> Trisult<T, W, E, C, A> {
     /// Returns `true` if the trisult is an `Err` value.
     #[inline]
     pub const fn is_err(&self) -> bool {
@@ -52,7 +52,7 @@ impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> Trisult<T,
     /// Converts from `Trisult<T, W, E, C, A>` to `Option<Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>>`.
     /// Returns the `Ok` value, consuming the `self` value, or `None` if it was an `Err`.
     #[inline]
-    pub fn ok(self) -> Option<Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>> {
+    pub fn ok(self) -> Option<Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>>> {
         if let Self::Ok(diagnosed) = self {
             Some(diagnosed)
         } else {
@@ -145,11 +145,11 @@ impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> Trisult<T,
     }
 }
 
-impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> MapDiagnosis<W, E>
+impl<T, W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> MapDiagnosis<W, E>
     for Trisult<T, W, E, C, A>
 {
     type Target<UW, UE, FW, FE>
-        = Trisult<T, UW, UE, C, <A::Alloc as AccAlloc>::Acc<Diagnosis<UW, UE>, C>>
+        = Trisult<T, UW, UE, C, <A::Alloc as Acc>::Acc<Diagnosis<UW, UE>, C>>
     where
         FW: FnMut(W) -> UW,
         FE: FnMut(E) -> UE;
@@ -167,8 +167,8 @@ impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> MapDiagnos
     }
 }
 
-impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> From<Trisult<T, W, E, C, A>>
-    for Result<Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>, Diagnoses<W, E, C, A>>
+impl<T, W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> From<Trisult<T, W, E, C, A>>
+    for Result<Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>>, Diagnoses<W, E, C, A>>
 {
     #[inline]
     fn from(val: Trisult<T, W, E, C, A>) -> Self {
@@ -179,7 +179,7 @@ impl<T, W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> From<Trisu
     }
 }
 
-impl<T, W: Debug, E: Debug, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C> + Debug>
+impl<T, W: Debug, E: Debug, C: CapturedContext, A: AccState<Diagnosis<W, E>, C> + Debug>
     Trisult<T, W, E, C, A>
 {
     /// Returns the contained [`Diagnosed`] value, consuming the `self` value.
@@ -191,7 +191,7 @@ impl<T, W: Debug, E: Debug, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, 
     #[allow(clippy::missing_panics_doc)]
     #[inline]
     #[track_caller]
-    pub fn expect(self, msg: &str) -> Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>> {
+    pub fn expect(self, msg: &str) -> Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>> {
         match self {
             Self::Ok(diag) => diag,
             Self::Err(err) => panic!("{msg}: {err:?}"),
@@ -207,7 +207,7 @@ impl<T, W: Debug, E: Debug, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, 
     #[allow(clippy::missing_panics_doc)]
     #[inline]
     #[track_caller]
-    pub fn unwrap(self) -> Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>> {
+    pub fn unwrap(self) -> Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>> {
         self.expect("called `Trisult::unwrap()` on an `Err` value")
     }
 }
@@ -215,8 +215,8 @@ impl<T, W: Debug, E: Debug, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, 
 impl<T, W, E, C, A> Debug for Trisult<T, W, E, C, A>
 where
     C: CapturedContext,
-    A: Accumulator<Diagnosis<W, E>, C>,
-    Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>: Debug,
+    A: AccState<Diagnosis<W, E>, C>,
+    Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>>: Debug,
     Diagnoses<W, E, C, A>: Debug,
 {
     #[inline]
@@ -231,8 +231,8 @@ where
 impl<T, W, E, C, A> Clone for Trisult<T, W, E, C, A>
 where
     C: CapturedContext,
-    A: Accumulator<Diagnosis<W, E>, C>,
-    Diagnosed<T, W, C, <A::Alloc as AccAlloc>::Acc<W, C>>: Clone,
+    A: AccState<Diagnosis<W, E>, C>,
+    Diagnosed<T, W, C, <A::Alloc as Acc>::Acc<W, C>>: Clone,
     Diagnoses<W, E, C, A>: Clone,
 {
     #[inline]

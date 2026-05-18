@@ -17,7 +17,7 @@ type DefaultImpl = most::Most;
 ///
 /// Default type is [`AllState`] with `alloc` feature,
 /// Otherwise, default type is [`MostAcc`].
-pub type DefaultAcc<T, C> = <DefaultImpl as AccAlloc>::Acc<T, C>;
+pub type DefaultAcc<T, C> = <DefaultImpl as Acc>::Acc<T, C>;
 
 /// A default allocator for accumulators.
 ///
@@ -26,18 +26,18 @@ pub type DefaultAcc<T, C> = <DefaultImpl as AccAlloc>::Acc<T, C>;
 pub type Default = DefaultImpl;
 
 /// A trait for statically passing accumulator policy.
-pub trait AccAlloc {
+pub trait Acc {
     /// An accumulator type to allocate.
-    type Acc<T, C: CapturedContext>: Accumulator<T, C, Alloc = Self>;
+    type Acc<T, C: CapturedContext>: AccState<T, C, Alloc = Self>;
 
     /// Create new, empty accumulator state for given types.
     fn create_state<T, C: CapturedContext>() -> Self::Acc<T, C>;
 }
 
 /// The internal state of an accumulator.
-pub trait Accumulator<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, C>> {
+pub trait AccState<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, C>> {
     /// An allocator used to allocate this accumulator.
-    type Alloc: AccAlloc<Acc<T, C> = Self>;
+    type Alloc: Acc<Acc<T, C> = Self>;
 
     /// Returns `true` if the accumulator contains no items.
     fn is_empty(&self) -> bool;
@@ -49,7 +49,7 @@ pub trait Accumulator<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, 
     fn iter(&'_ self) -> ContextualIter<'_, T, C>;
 
     /// Maps the accumulated values using the given closure.
-    fn map<U>(self, map: impl FnMut(T) -> U) -> <Self::Alloc as AccAlloc>::Acc<U, C>;
+    fn map<U>(self, map: impl FnMut(T) -> U) -> <Self::Alloc as Acc>::Acc<U, C>;
 
     /// Reserves capacity for at least `additional` more elements to be inserted.
     fn reserve(&mut self, additional: usize);

@@ -3,7 +3,7 @@
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use trisult::{
-    trisult, AccAlloc, All, ContextStack, ContextStackMut, Contextual, Diagnosed, Diagnoses,
+    trisult, Acc, All, ContextStack, ContextStackMut, Contextual, Diagnosed, Diagnoses,
     Diagnosis, MapDiagnosis, Most, NoLoc, Prioritized, Severity, Trisult,
 };
 
@@ -70,11 +70,11 @@ pub type HealthResult<T, A> = Trisult<
     HealthWarn,
     HealthErr,
     String,
-    <A as AccAlloc>::Acc<Diagnosis<HealthWarn, HealthErr>, String>,
+    <A as Acc>::Acc<Diagnosis<HealthWarn, HealthErr>, String>,
 >;
 
 #[trisult(segment = node_name.to_string())]
-fn check_node<#[kind] A: AccAlloc>(
+fn check_node<#[kind] A: Acc>(
     node_name: &str,
     latency: u32,
     version: &str,
@@ -98,7 +98,7 @@ fn check_node<#[kind] A: AccAlloc>(
 }
 
 #[trisult]
-fn parent_check<#[kind] A: AccAlloc>(#[context] ctx: &mut NodeContext) -> HealthResult<bool, A> {
+fn parent_check<#[kind] A: Acc>(#[context] ctx: &mut NodeContext) -> HealthResult<bool, A> {
     // Generate a warning first
     warn!(HealthWarn::HighLatency(500));
 

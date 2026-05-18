@@ -1,5 +1,5 @@
 use crate::{
-    AccAlloc, Accumulator, CapturedContext, ContextualIter, DefaultAcc, NoLoc, Prioritized,
+    Acc, AccState, CapturedContext, ContextualIter, DefaultAcc, NoLoc, Prioritized,
 };
 use core::error::Error;
 use core::fmt::{Debug, Display, Formatter};
@@ -91,7 +91,7 @@ where
 pub struct Contextuals<T, C = NoLoc, A = DefaultAcc<T, C>>
 where
     C: CapturedContext,
-    A: Accumulator<T, C>,
+    A: AccState<T, C>,
 {
     state: A,
     ignored: usize,
@@ -101,7 +101,7 @@ where
 impl<T, C, A> Contextuals<T, C, A>
 where
     C: CapturedContext,
-    A: Accumulator<T, C>,
+    A: AccState<T, C>,
 {
     /// Creates a new, empty accumulator with the given state.
     #[inline]
@@ -125,7 +125,7 @@ where
 impl<T, C, A> Contextuals<T, C, A>
 where
     C: CapturedContext,
-    A: Accumulator<T, C>,
+    A: AccState<T, C>,
 {
     /// Returns `true` if the accumulator contains no items.
     #[inline]
@@ -150,7 +150,7 @@ where
     pub fn map<U>(
         self,
         map: impl FnMut(T) -> U,
-    ) -> Contextuals<U, C, <A::Alloc as AccAlloc>::Acc<U, C>> {
+    ) -> Contextuals<U, C, <A::Alloc as Acc>::Acc<U, C>> {
         Contextuals {
             state: self.state.map(map),
             ignored: self.ignored,
@@ -205,7 +205,7 @@ impl<T, C, A> Extend<Contextual<T, C>> for Contextuals<T, C, A>
 where
     T: Prioritized,
     C: CapturedContext,
-    A: Accumulator<T, C>,
+    A: AccState<T, C>,
 {
     #[inline]
     fn extend<I: IntoIterator<Item = Contextual<T, C>>>(&mut self, iter: I) {
@@ -224,7 +224,7 @@ where
 impl<T, C, A> IntoIterator for Contextuals<T, C, A>
 where
     C: CapturedContext,
-    A: Accumulator<T, C>,
+    A: AccState<T, C>,
 {
     type Item = Contextual<T, C>;
     type IntoIter = <A as IntoIterator>::IntoIter;
@@ -238,7 +238,7 @@ where
 impl<'a, T, C, A> IntoIterator for &'a Contextuals<T, C, A>
 where
     C: CapturedContext,
-    A: Accumulator<T, C>,
+    A: AccState<T, C>,
 {
     type Item = Contextual<&'a T, &'a C>;
     type IntoIter = ContextualIter<'a, T, C>;
@@ -253,7 +253,7 @@ impl<T, C, A> Display for Contextuals<T, C, A>
 where
     T: Display,
     C: CapturedContext,
-    A: Accumulator<T, C>,
+    A: AccState<T, C>,
 {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -280,7 +280,7 @@ impl<T, C, A> Error for Contextuals<T, C, A>
 where
     T: Error,
     C: CapturedContext,
-    A: Accumulator<T, C> + Debug + Display,
+    A: AccState<T, C> + Debug + Display,
 {
     // NOTE: fn source() cannot be implemented;
     //       An array of impl Error cannot be implicitly cast into dyn Error.

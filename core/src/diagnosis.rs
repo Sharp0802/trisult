@@ -1,5 +1,5 @@
 use crate::{
-    AccAlloc, Accumulator, CapturedContext, Contextual, Contextuals, DefaultAcc, MapDiagnosis,
+    Acc, AccState, CapturedContext, Contextual, Contextuals, DefaultAcc, MapDiagnosis,
     NoLoc, Prioritized,
 };
 use core::error::Error;
@@ -160,7 +160,7 @@ pub type Diagnoses<W, E, C = NoLoc, A = DefaultAcc<Diagnosis<W, E>, C>> =
 impl<W, E, C, A> Diagnoses<W, E, C, A>
 where
     C: CapturedContext,
-    A: Accumulator<Diagnosis<W, E>, C>,
+    A: AccState<Diagnosis<W, E>, C>,
 {
     /// Maps `Diagnosis<W, E>` into `W`.
     ///
@@ -168,7 +168,7 @@ where
     ///
     /// Panics if it contains any error value.
     #[inline]
-    pub fn unwrap_as_warnings(self) -> Contextuals<W, C, <A::Alloc as AccAlloc>::Acc<W, C>> {
+    pub fn unwrap_as_warnings(self) -> Contextuals<W, C, <A::Alloc as Acc>::Acc<W, C>> {
         if self.is_empty() {
             Contextuals::new(A::Alloc::create_state::<W, C>())
         } else {
@@ -191,11 +191,11 @@ where
     }
 }
 
-impl<W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> MapDiagnosis<W, E>
+impl<W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> MapDiagnosis<W, E>
     for Diagnoses<W, E, C, A>
 {
     type Target<UW, UE, FW, FE>
-        = Diagnoses<UW, UE, C, <A::Alloc as AccAlloc>::Acc<Diagnosis<UW, UE>, C>>
+        = Diagnoses<UW, UE, C, <A::Alloc as Acc>::Acc<Diagnosis<UW, UE>, C>>
     where
         FW: FnMut(W) -> UW,
         FE: FnMut(E) -> UE;
@@ -212,7 +212,7 @@ impl<W, E, C: CapturedContext, A: Accumulator<Diagnosis<W, E>, C>> MapDiagnosis<
 
 /// A successful value coupled with any accumulated warnings.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Diagnosed<T, W, C: CapturedContext = NoLoc, A: Accumulator<W, C> = DefaultAcc<W, C>>(
+pub struct Diagnosed<T, W, C: CapturedContext = NoLoc, A: AccState<W, C> = DefaultAcc<W, C>>(
     /// The successful value.
     pub T,
     /// Accumulated warnings that occurred during execution.

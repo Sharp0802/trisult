@@ -1,5 +1,5 @@
 use crate::{
-    AccAlloc, Accumulator, CapturedContext, Contextual, ContextualIter, Prioritized, VEC_SIZE,
+    Acc, AccState, CapturedContext, Contextual, ContextualIter, Prioritized, VEC_SIZE,
 };
 use smallvec::SmallVec;
 
@@ -10,7 +10,7 @@ pub struct All;
 /// An accumulator that collects all items.
 pub type AllState<T, C> = SmallVec<Contextual<T, C>, VEC_SIZE>;
 
-impl AccAlloc for All {
+impl Acc for All {
     type Acc<T, C: CapturedContext> = AllState<T, C>;
 
     #[inline]
@@ -19,7 +19,7 @@ impl AccAlloc for All {
     }
 }
 
-impl<T, C: CapturedContext> Accumulator<T, C> for AllState<T, C> {
+impl<T, C: CapturedContext> AccState<T, C> for AllState<T, C> {
     type Alloc = All;
 
     #[inline]
@@ -38,7 +38,7 @@ impl<T, C: CapturedContext> Accumulator<T, C> for AllState<T, C> {
     }
 
     #[inline]
-    fn map<U>(self, mut map: impl FnMut(T) -> U) -> <Self::Alloc as AccAlloc>::Acc<U, C> {
+    fn map<U>(self, mut map: impl FnMut(T) -> U) -> <Self::Alloc as Acc>::Acc<U, C> {
         if self.is_empty() {
             return SmallVec::new();
         }

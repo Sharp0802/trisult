@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use trisult::{
-    AccAlloc, All, Contextual, ContextualDiagnosis, Contextuals, Diagnosed, Diagnoses, Diagnosis,
+    Acc, All, Contextual, ContextualDiagnosis, Contextuals, Diagnosed, Diagnoses, Diagnosis,
     MapDiagnosis, Most, NoLoc, Prioritized, Trisult,
 };
 
@@ -49,11 +49,11 @@ impl Prioritized for Val {
 
 #[test]
 fn test_accumulator_most() {
-    use trisult::Accumulator;
+    use trisult::AccState;
 
     let mut most = Most::create_state::<Val, NoLoc>();
 
-    Accumulator::reserve(&mut most, 5);
+    AccState::reserve(&mut most, 5);
 
     // push
     {
@@ -89,32 +89,32 @@ fn test_accumulator_most() {
 
     // map
     {
-        let mapped = Accumulator::map(most, |v| Val(v.0 + 1));
+        let mapped = AccState::map(most, |v| Val(v.0 + 1));
         assert_eq!(mapped.unwrap().value.0, 31);
     }
 
     // map empty
     {
         let lhs = Most::create_state::<Val, NoLoc>();
-        let mapped = Accumulator::map(lhs, |v| Val(v.0 + 1));
+        let mapped = AccState::map(lhs, |v| Val(v.0 + 1));
         assert!(mapped.is_empty());
     }
 }
 
 #[test]
 fn test_accumulator_all() {
-    use trisult::Accumulator;
+    use trisult::AccState;
 
     let mut all = All::create_state::<Val, NoLoc>();
 
-    Accumulator::reserve(&mut all, 5);
+    AccState::reserve(&mut all, 5);
 
     // push
     {
         assert!(all.push_naive(Contextual::new(NoLoc, Val(0))));
         assert!(all.push_naive(Contextual::new(NoLoc, Val(1))));
-        assert!(Accumulator::push(&mut all, Contextual::new(NoLoc, Val(10))));
-        assert!(Accumulator::push(&mut all, Contextual::new(NoLoc, Val(1))));
+        assert!(AccState::push(&mut all, Contextual::new(NoLoc, Val(10))));
+        assert!(AccState::push(&mut all, Contextual::new(NoLoc, Val(1))));
     }
 
     // append
@@ -126,7 +126,7 @@ fn test_accumulator_all() {
         assert_eq!(all.append_naive(lhs.clone()), 0);
         assert!(all.iter().map(|d| d.value.0).eq([0, 1, 10, 1, 20, 30]));
 
-        assert_eq!(Accumulator::append(&mut all, lhs.clone()), 0);
+        assert_eq!(AccState::append(&mut all, lhs.clone()), 0);
         assert!(
             all.iter()
                 .map(|d| d.value.0)
@@ -141,14 +141,14 @@ fn test_accumulator_all() {
         assert!(lhs.iter().eq(all.iter()));
 
         let lhs = All::create_state::<Val, NoLoc>();
-        assert_eq!(Accumulator::append(&mut all, lhs.clone()), 0);
+        assert_eq!(AccState::append(&mut all, lhs.clone()), 0);
         assert_eq!(all.append_naive(lhs), 0);
         assert_eq!(all.len(), 8); // there is no item to append
     }
 
     // map
     {
-        let mapped = Accumulator::map(all, |v| Val(v.0 + 1));
+        let mapped = AccState::map(all, |v| Val(v.0 + 1));
         assert!(
             mapped
                 .iter()
@@ -160,7 +160,7 @@ fn test_accumulator_all() {
     // map empty
     {
         let lhs = All::create_state::<Val, NoLoc>();
-        let mapped = Accumulator::map(lhs, |v| Val(v.0 + 1));
+        let mapped = AccState::map(lhs, |v| Val(v.0 + 1));
         assert!(mapped.is_empty());
     }
 }
@@ -521,7 +521,7 @@ fn test_iterators() {
 
 #[test]
 fn test_tri_unpack_with_existing_diags_append() {
-    use trisult::AccAlloc;
+    use trisult::Acc;
     let mut diags = Diagnoses::new(All::create_state());
     let mut has_errors = true; // Simulating we already have an error
 

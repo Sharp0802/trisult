@@ -1,7 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::hint::black_box;
-use trisult::{custom_trisult, trisult, AccAlloc, Most};
-use trisult::{Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
+use trisult::{trisult, Acc, Most, Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
 
 #[cfg(feature = "alloc")]
 use trisult::All;
@@ -10,7 +9,8 @@ use trisult::All;
 type ErrorTy = &'static str;
 type WarnTy = &'static str;
 
-custom_trisult!(Tri<T>(WarnTy, ErrorTy));
+#[allow(type_alias_bounds)]
+type Tri<T, A: Acc> = Trisult<T, WarnTy, ErrorTy, NoLoc, A::Acc<Diagnosis<WarnTy, ErrorTy>, NoLoc>>;
 
 // ============================================================================
 // IMPLEMENTATIONS
@@ -35,7 +35,7 @@ mod result {
 mod manual {
     use super::*;
 
-    pub fn fast_fail<T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
+    pub fn fast_fail<T: Acc>(inputs: &[i32]) -> Tri<i32, T> {
         let mut ret = 0;
         for &input in inputs {
             if input < 0 {
@@ -50,7 +50,7 @@ mod manual {
         Trisult::Ok(Diagnosed(ret, Contextuals::new(T::create_state())))
     }
 
-    pub fn accumulate<T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
+    pub fn accumulate<T: Acc>(inputs: &[i32]) -> Tri<i32, T> {
         let mut errs = Contextuals::new(T::create_state());
 
         let mut ret = 0;
@@ -74,7 +74,7 @@ mod macros {
     use super::*;
 
     #[trisult]
-    pub fn fast_fail<#[kind] T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
+    pub fn fast_fail<#[kind] T: Acc>(inputs: &[i32]) -> Tri<i32, T> {
         let mut ret = 0;
         for &input in inputs {
             if input < 0 {
@@ -89,7 +89,7 @@ mod macros {
     }
 
     #[trisult]
-    pub fn accumulate<#[kind] T: AccAlloc>(inputs: &[i32]) -> Tri<i32, T> {
+    pub fn accumulate<#[kind] T: Acc>(inputs: &[i32]) -> Tri<i32, T> {
         let mut ret = 0;
         for &input in inputs {
             if input < 0 {

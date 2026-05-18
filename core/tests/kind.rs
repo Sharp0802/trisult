@@ -1,17 +1,17 @@
 mod shared;
 
 use crate::shared::mock::{MockErr, MockWarn, TraceStack};
-use trisult::{trisult, AccAlloc, Default, Diagnosed, Diagnosis, Most, Trisult};
+use trisult::{trisult, Acc, Default, Diagnosed, Diagnosis, Most, Trisult};
 
 #[cfg(feature = "alloc")]
 use trisult::All;
 
 #[allow(type_alias_bounds)]
-pub type MockResult<T, A: AccAlloc = Default> =
+pub type MockResult<T, A: Acc = Default> =
     Trisult<T, MockWarn, MockErr, String, A::Acc<Diagnosis<MockWarn, MockErr>, String>>;
 
 #[trisult(segment = "warn_node")]
-fn multiple_warnings<#[kind] T: AccAlloc>(#[context] stack: &mut TraceStack) -> MockResult<i32, T> {
+fn multiple_warnings<#[kind] T: Acc>(#[context] stack: &mut TraceStack) -> MockResult<i32, T> {
     warn!(MockWarn::MinorIssue);
     warn!(MockWarn::MinorIssue);
     Some(42)
@@ -59,7 +59,7 @@ fn test_dynamic_kind_most_warnings() {
 }
 
 #[trisult(segment = "mixed_node")]
-fn warning_then_error<#[kind] T: AccAlloc>(#[context] stack: &mut TraceStack) -> MockResult<(), T> {
+fn warning_then_error<#[kind] T: Acc>(#[context] stack: &mut TraceStack) -> MockResult<(), T> {
     warn!(MockWarn::MinorIssue);
     error!(MockErr::FatalIssue);
     None

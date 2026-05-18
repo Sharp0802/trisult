@@ -49,7 +49,7 @@ impl Parse for TrisultArgs {
 impl TrisultArgs {
     fn prologue(&self, ident: &Ident) -> TokenStream {
         if let Some((_, segment)) = &self.segment {
-            quote! { #ident.push( #segment.into() ); }
+            quote! { ::trisult::ContextStackMut::push( #ident , #segment.into() ); }
         } else {
             quote! {}
         }
@@ -57,7 +57,7 @@ impl TrisultArgs {
 
     fn epilogue(&self, ident: &Ident) -> TokenStream {
         if self.segment.is_some() {
-            quote! { #ident.pop(); }
+            quote! { ::trisult::ContextStackMut::pop( #ident ); }
         } else {
             quote! {}
         }
@@ -156,11 +156,11 @@ fn quote_macros(context: Option<&Ident>) -> TokenStream {
 
         macro_rules! warn {
             ($warn:expr, $ctx:expr) => { __impl_warn!($warn, $ctx) };
-            ($warn:expr) => { warn!($warn, #ident.capture()) };
+            ($warn:expr) => { warn!($warn, ::trisult::ContextStackMut::capture( #ident )) };
         }
         macro_rules! error {
             ($err:expr, $ctx:expr) => { __impl_error!($err, $ctx) };
-            ($err:expr) => { error!($err, #ident.capture()) };
+            ($err:expr) => { error!($err, ::trisult::ContextStackMut::capture( #ident )) };
         }
     })
 }
@@ -222,8 +222,6 @@ pub fn trisult(
     let original_block = &func.block;
     let expanded_block = quote! {
         {
-            use ::trisult::{AccAlloc, Accumulator, ContextStackMut};
-
             trait __TrisultInfer {
                 type T;
                 type W;
@@ -234,7 +232,7 @@ pub fn trisult(
             impl<__T, __W, __E, __C, __A> __TrisultInfer for ::trisult::Trisult<__T, __W, __E, __C, __A>
             where
                 __C: ::trisult::CapturedContext,
-                __A: ::trisult::Accumulator<::trisult::Diagnosis<__W, __E>, __C>,
+                __A: ::trisult::AccState<::trisult::Diagnosis<__W, __E>, __C>,
             {
                 type T = __T;
                 type W = __W;
@@ -243,7 +241,7 @@ pub fn trisult(
             }
 
             let mut __trisult_diags = ::trisult::Diagnoses::new(
-                #state ::create_state::<
+                <#state as ::trisult::Acc>::create_state::<
                     ::trisult::Diagnosis<
                         <#return_type as __TrisultInfer>::W,
                         <#return_type as __TrisultInfer>::E
