@@ -3,8 +3,8 @@
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use trisult::{
-    trisult, Acc, All, ContextStack, ContextStackMut, Contextual, Diagnosed, Diagnoses,
-    Diagnosis, MapDiagnosis, Most, NoLoc, Prioritized, Severity, Trisult,
+    trisult, Acc, All, ContextStack, ContextStackMut, Contextual, Contextuals, Diagnosed,
+    Diagnoses, Diagnosis, MapDiagnosis, Most, NoLoc, Prioritized, Severity, Trisult,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,13 +65,8 @@ impl ContextStackMut for NodeContext {
     fn pop(&mut self) {}
 }
 
-pub type HealthResult<T, A> = Trisult<
-    T,
-    HealthWarn,
-    HealthErr,
-    String,
-    <A as Acc>::Acc<Diagnosis<HealthWarn, HealthErr>, String>,
->;
+pub type HealthResult<T, A> =
+    Trisult<T, HealthWarn, HealthErr, <A as Acc>::Acc<Diagnosis<HealthWarn, HealthErr>, String>>;
 
 #[trisult(segment = node_name.to_string())]
 fn check_node<#[kind] A: Acc>(
@@ -236,7 +231,7 @@ fn run_health_checks() {
     assert!(err_dbg.contains("Err"));
 
     // 5. Test Contextuals push naive vs push priority
-    let mut all_acc = trisult::Contextuals::new(trisult::AllState::new());
+    let mut all_acc = Contextuals::new(All::create_state());
     all_acc.push_naive(Contextual::new(NoLoc, Diagnosis::Error(HealthErr::Timeout)));
     all_acc.push(Contextual::new(
         NoLoc,

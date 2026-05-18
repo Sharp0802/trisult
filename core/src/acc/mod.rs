@@ -6,7 +6,7 @@ mod most;
 pub use all::{All, AllState};
 pub use most::{Most, MostAcc};
 
-use crate::{CapturedContext, Contextual, ContextualIter, Prioritized};
+use crate::{Contextual, ContextualIter, Prioritized};
 
 #[cfg(feature = "alloc")]
 type DefaultImpl = All;
@@ -30,7 +30,10 @@ pub trait Acc {
 
 /// The internal state of an accumulator.
 pub trait AccState: IntoIterator<Item = Contextual<Self::Type, Self::Context>> {
+    /// An item type to be accumulated
     type Type;
+
+    /// A captured context type
     type Context;
 
     /// An allocator used to allocate this accumulator.

@@ -226,18 +226,17 @@ pub fn trisult(
                 type T;
                 type W;
                 type E;
-                type C: ::trisult::CapturedContext;
+                type C;
             }
 
-            impl<__T, __W, __E, __C, __A> __TrisultInfer for ::trisult::Trisult<__T, __W, __E, __C, __A>
+            impl<__T, __W, __E, __A> __TrisultInfer for ::trisult::Trisult<__T, __W, __E, __A>
             where
-                __C: ::trisult::CapturedContext,
-                __A: ::trisult::AccState<::trisult::Diagnosis<__W, __E>, __C>,
+                __A: ::trisult::AccState<Type = ::trisult::Diagnosis<__W, __E>>,
             {
                 type T = __T;
                 type W = __W;
                 type E = __E;
-                type C = __C;
+                type C = __A::Context;
             }
 
             let mut __trisult_diags = ::trisult::Diagnoses::new(

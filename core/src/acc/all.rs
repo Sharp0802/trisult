@@ -1,6 +1,4 @@
-use crate::{
-    Acc, AccState, CapturedContext, Contextual, ContextualIter, Prioritized, VEC_SIZE,
-};
+use crate::{Acc, AccState, Contextual, ContextualIter, Prioritized, VEC_SIZE};
 use smallvec::SmallVec;
 
 /// An allocator for an accumulator that collects all items.
@@ -8,6 +6,7 @@ use smallvec::SmallVec;
 pub struct All;
 
 /// An accumulator that collects all items.
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AllState<T, C>(SmallVec<Contextual<T, C>, VEC_SIZE>);
 
 impl Acc for All {
@@ -23,6 +22,7 @@ impl<T, C> IntoIterator for AllState<T, C> {
     type Item = Contextual<T, C>;
     type IntoIter = smallvec::IntoIter<Self::Item, VEC_SIZE>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }

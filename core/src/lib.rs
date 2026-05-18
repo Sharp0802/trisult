@@ -38,3 +38,4 @@ pub use trisult::*;
 ///
 /// See [`README`](crate) for examples.
 pub use trisult_macros::trisult;
+

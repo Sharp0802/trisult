@@ -1,4 +1,4 @@
-use crate::{CapturedContext, Contextual, ContextualDiagnosis, Diagnosis, NoLoc};
+use crate::{CapturedContext, Contextual, ContextualDiagnosis, Diagnosis};
 
 /// An iterator that maps the warning and error components of a stream of `ContextualDiagnosis` items.
 pub struct MapIter<W, E, UW, UE, C, I, FW, FE>
@@ -71,19 +71,19 @@ where
 /// An iterator over references to items within an `AccumulatorState`.
 #[derive(Debug)]
 #[non_exhaustive]
-pub struct ContextualIter<'a, T, C: CapturedContext = NoLoc> {
+pub struct ContextualIter<'a, T, C> {
     source: &'a [Contextual<T, C>],
     index: usize,
 }
 
-impl<'a, T, C: CapturedContext> ContextualIter<'a, T, C> {
+impl<'a, T, C> ContextualIter<'a, T, C> {
     #[inline]
     pub(crate) const fn new(source: &'a [Contextual<T, C>]) -> Self {
         Self { source, index: 0 }
     }
 }
 
-impl<'a, T, C: CapturedContext> Iterator for ContextualIter<'a, T, C> {
+impl<'a, T, C> Iterator for ContextualIter<'a, T, C> {
     type Item = Contextual<&'a T, &'a C>;
 
     #[inline]
@@ -100,7 +100,7 @@ impl<'a, T, C: CapturedContext> Iterator for ContextualIter<'a, T, C> {
     }
 }
 
-impl<T, C: CapturedContext> ExactSizeIterator for ContextualIter<'_, T, C> {
+impl<T, C> ExactSizeIterator for ContextualIter<'_, T, C> {
     #[inline]
     fn len(&self) -> usize {
         self.source.len() - self.index

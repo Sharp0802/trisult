@@ -1,19 +1,18 @@
 use crate::{Acc, AccState, CapturedContext, ContextualIter, Prioritized};
 use core::error::Error;
 use core::fmt::{Debug, Display, Formatter};
-use core::marker::PhantomData;
 
 /// A value paired with the context in which it was produced.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Contextual<T, C: CapturedContext> {
+pub struct Contextual<T, C> {
     /// The context associated with the value.
     pub context: C,
     /// The inner value.
     pub value: T,
 }
 
-impl<T, C: CapturedContext> Contextual<T, C> {
+impl<T, C> Contextual<T, C> {
     /// Creates a new `Contextual` with the given context and value.
     #[inline]
     pub const fn new(context: C, value: T) -> Self {
@@ -42,7 +41,7 @@ impl<T, C: CapturedContext> Contextual<T, C> {
     }
 }
 
-impl<T: Prioritized, C: CapturedContext> Prioritized for Contextual<T, C> {
+impl<T: Prioritized, C> Prioritized for Contextual<T, C> {
     type Priority = T::Priority;
 
     #[inline]
@@ -51,14 +50,14 @@ impl<T: Prioritized, C: CapturedContext> Prioritized for Contextual<T, C> {
     }
 }
 
-impl<T: Display, C: CapturedContext> Display for Contextual<T, C> {
+impl<T: Display, C: Display> Display for Contextual<T, C> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}: {}", self.context, self.value)
     }
 }
 
-impl<T: Error + 'static, C: CapturedContext> Error for Contextual<T, C> {
+impl<T: Error + 'static, C: Debug + Display> Error for Contextual<T, C> {
     #[inline]
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         self.value.source()
@@ -68,30 +67,17 @@ impl<T: Error + 'static, C: CapturedContext> Error for Contextual<T, C> {
 /// An contextual accumulator that collects `Contextual` items based on a specific `Accumulator`.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Contextuals<T, C, A>
-where
-    C: CapturedContext,
-    A: AccState<T, C>,
-{
+pub struct Contextuals<A> {
     state: A,
     ignored: usize,
-    _dummy: PhantomData<(T, C)>,
 }
 
-impl<T, C, A> Contextuals<T, C, A>
-where
-    C: CapturedContext,
-    A: AccState<T, C>,
-{
+impl<A> Contextuals<A> {
     /// Creates a new, empty accumulator with the given state.
     #[inline]
     #[must_use]
     pub const fn new(state: A) -> Self {
-        Self {
-            state,
-            ignored: 0,
-            _dummy: PhantomData,
-        }
+        Self { state, ignored: 0 }
     }
 
     /// Retrieves the number of ignored items.
@@ -102,11 +88,7 @@ where
     }
 }
 
-impl<T, C, A> Contextuals<T, C, A>
-where
-    C: CapturedContext,
-    A: AccState<T, C>,
-{
+impl<A: AccState> Contextuals<A> {
     /// Returns `true` if the accumulator contains no items.
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -115,7 +97,7 @@ where
 
     /// Returns an iterator over the accumulated contextual items.
     #[inline]
-    pub fn iter(&'_ self) -> ContextualIter<'_, T, C> {
+    pub fn iter(&'_ self) -> ContextualIter<'_, A::Type, A::Context> {
         self.state.iter()
     }
 
@@ -129,12 +111,11 @@ where
     #[inline]
     pub fn map<U>(
         self,
-        map: impl FnMut(T) -> U,
-    ) -> Contextuals<U, C, <A::Alloc as Acc>::Acc<U, C>> {
+        map: impl FnMut(A::Type) -> U,
+    ) -> Contextuals<<A::Alloc as Acc>::Acc<U, A::Context>> {
         Contextuals {
             state: self.state.map(map),
             ignored: self.ignored,
-            _dummy: PhantomData,
         }
     }
 
@@ -146,7 +127,7 @@ where
 
     /// Pushes a value into the accumulator without checking priorities.
     #[inline]
-    pub fn push_naive(&mut self, value: Contextual<T, C>) {
+    pub fn push_naive(&mut self, value: Contextual<A::Type, A::Context>) {
         if !self.state.push_naive(value) {
             self.ignored += 1;
         }
@@ -161,9 +142,9 @@ where
     /// Pushes a value into the accumulator, respecting item priorities.
     /// In a `Most` state, an item will overwrite the existing item if it has a strictly higher priority.
     #[inline]
-    pub fn push(&mut self, value: Contextual<T, C>)
+    pub fn push(&mut self, value: Contextual<A::Type, A::Context>)
     where
-        T: Prioritized,
+        A::Type: Prioritized,
     {
         if !self.state.push(value) {
             self.ignored += 1;
@@ -174,18 +155,17 @@ where
     #[inline]
     pub fn append(&mut self, other: Self)
     where
-        T: Prioritized,
+        A::Type: Prioritized,
     {
         let ignored = self.state.append(other.state);
         self.ignored += ignored + other.ignored;
     }
 }
 
-impl<T, C, A> Extend<Contextual<T, C>> for Contextuals<T, C, A>
+impl<T, C, A> Extend<Contextual<T, C>> for Contextuals<A>
 where
     T: Prioritized,
-    C: CapturedContext,
-    A: AccState<T, C>,
+    A: AccState<Type = T, Context = C>,
 {
     #[inline]
     fn extend<I: IntoIterator<Item = Contextual<T, C>>>(&mut self, iter: I) {
@@ -201,11 +181,7 @@ where
     }
 }
 
-impl<T, C, A> IntoIterator for Contextuals<T, C, A>
-where
-    C: CapturedContext,
-    A: AccState<T, C>,
-{
+impl<T, C, A: AccState<Type = T, Context = C>> IntoIterator for Contextuals<A> {
     type Item = Contextual<T, C>;
     type IntoIter = <A as IntoIterator>::IntoIter;
 
@@ -215,10 +191,11 @@ where
     }
 }
 
-impl<'a, T, C, A> IntoIterator for &'a Contextuals<T, C, A>
+impl<'a, T, C, A> IntoIterator for &'a Contextuals<A>
 where
-    C: CapturedContext,
-    A: AccState<T, C>,
+    T: 'a,
+    C: 'a,
+    A: AccState<Type = T, Context = C>,
 {
     type Item = Contextual<&'a T, &'a C>;
     type IntoIter = ContextualIter<'a, T, C>;
@@ -229,11 +206,11 @@ where
     }
 }
 
-impl<T, C, A> Display for Contextuals<T, C, A>
+impl<T, C, A> Display for Contextuals<A>
 where
     T: Display,
     C: CapturedContext,
-    A: AccState<T, C>,
+    A: AccState<Type = T, Context = C>,
 {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -256,11 +233,11 @@ where
     }
 }
 
-impl<T, C, A> Error for Contextuals<T, C, A>
+impl<T, C, A> Error for Contextuals<A>
 where
     T: Error,
     C: CapturedContext,
-    A: AccState<T, C> + Debug + Display,
+    A: AccState<Type = T, Context = C> + Debug + Display,
 {
     // NOTE: fn source() cannot be implemented;
     //       An array of impl Error cannot be implicitly cast into dyn Error.

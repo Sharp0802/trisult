@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::hint::black_box;
-use trisult::{trisult, Acc, Most, Contextual, Contextuals, Diagnosed, Diagnosis, NoLoc, Trisult};
+use trisult::{trisult, Acc, Contextual, Contextuals, Diagnosed, Diagnosis, Most, NoLoc, Trisult};
 
 #[cfg(feature = "alloc")]
 use trisult::All;
@@ -10,7 +10,7 @@ type ErrorTy = &'static str;
 type WarnTy = &'static str;
 
 #[allow(type_alias_bounds)]
-type Tri<T, A: Acc> = Trisult<T, WarnTy, ErrorTy, NoLoc, A::Acc<Diagnosis<WarnTy, ErrorTy>, NoLoc>>;
+type Tri<T, A: Acc> = Trisult<T, WarnTy, ErrorTy, A::Acc<Diagnosis<WarnTy, ErrorTy>, NoLoc>>;
 
 // ============================================================================
 // IMPLEMENTATIONS

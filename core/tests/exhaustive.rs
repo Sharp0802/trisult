@@ -3,8 +3,8 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use trisult::{
-    Acc, All, Contextual, ContextualDiagnosis, Contextuals, Diagnosed, Diagnoses, Diagnosis,
-    MapDiagnosis, Most, NoLoc, Prioritized, Trisult,
+    Acc, AccState, All, AllState, Contextual, ContextualDiagnosis, Contextuals, Diagnosed,
+    Diagnoses, Diagnosis, MapDiagnosis, Most, NoLoc, Prioritized, Trisult,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,11 +49,9 @@ impl Prioritized for Val {
 
 #[test]
 fn test_accumulator_most() {
-    use trisult::AccState;
-
     let mut most = Most::create_state::<Val, NoLoc>();
 
-    AccState::reserve(&mut most, 5);
+    most.reserve(5);
 
     // push
     {
@@ -89,32 +87,30 @@ fn test_accumulator_most() {
 
     // map
     {
-        let mapped = AccState::map(most, |v| Val(v.0 + 1));
-        assert_eq!(mapped.unwrap().value.0, 31);
+        let mapped = most.map(|v| Val(v.0 + 1));
+        assert!(mapped.into_iter().map(|d| d.value.0).eq([31]));
     }
 
     // map empty
     {
         let lhs = Most::create_state::<Val, NoLoc>();
-        let mapped = AccState::map(lhs, |v| Val(v.0 + 1));
+        let mapped = lhs.map(|v| Val(v.0 + 1));
         assert!(mapped.is_empty());
     }
 }
 
 #[test]
 fn test_accumulator_all() {
-    use trisult::AccState;
-
     let mut all = All::create_state::<Val, NoLoc>();
 
-    AccState::reserve(&mut all, 5);
+    all.reserve(5);
 
     // push
     {
         assert!(all.push_naive(Contextual::new(NoLoc, Val(0))));
         assert!(all.push_naive(Contextual::new(NoLoc, Val(1))));
-        assert!(AccState::push(&mut all, Contextual::new(NoLoc, Val(10))));
-        assert!(AccState::push(&mut all, Contextual::new(NoLoc, Val(1))));
+        assert!(all.push(Contextual::new(NoLoc, Val(10))));
+        assert!(all.push(Contextual::new(NoLoc, Val(1))));
     }
 
     // append
@@ -126,7 +122,7 @@ fn test_accumulator_all() {
         assert_eq!(all.append_naive(lhs.clone()), 0);
         assert!(all.iter().map(|d| d.value.0).eq([0, 1, 10, 1, 20, 30]));
 
-        assert_eq!(AccState::append(&mut all, lhs.clone()), 0);
+        assert_eq!(all.append(lhs.clone()), 0);
         assert!(
             all.iter()
                 .map(|d| d.value.0)
@@ -141,14 +137,14 @@ fn test_accumulator_all() {
         assert!(lhs.iter().eq(all.iter()));
 
         let lhs = All::create_state::<Val, NoLoc>();
-        assert_eq!(AccState::append(&mut all, lhs.clone()), 0);
+        assert_eq!(all.append(lhs.clone()), 0);
         assert_eq!(all.append_naive(lhs), 0);
         assert_eq!(all.len(), 8); // there is no item to append
     }
 
     // map
     {
-        let mapped = AccState::map(all, |v| Val(v.0 + 1));
+        let mapped = all.map(|v| Val(v.0 + 1));
         assert!(
             mapped
                 .iter()
@@ -160,14 +156,14 @@ fn test_accumulator_all() {
     // map empty
     {
         let lhs = All::create_state::<Val, NoLoc>();
-        let mapped = AccState::map(lhs, |v| Val(v.0 + 1));
+        let mapped = lhs.map(|v| Val(v.0 + 1));
         assert!(mapped.is_empty());
     }
 }
 
 #[test]
 fn test_contextuals_most() {
-    let mut ctxs = Contextuals::new(trisult::Most::create_state::<Val, NoLoc>());
+    let mut ctxs = Contextuals::new(Most::create_state::<Val, NoLoc>());
 
     // display empty
     {
@@ -227,7 +223,7 @@ fn test_contextuals_most() {
 
 #[test]
 fn test_contextuals_all() {
-    let mut ctxs = Contextuals::new(trisult::All::create_state::<Val, NoLoc>());
+    let mut ctxs = Contextuals::new(All::create_state::<Val, NoLoc>());
 
     // display empty
     {
@@ -243,7 +239,7 @@ fn test_contextuals_all() {
         assert_eq!(ctxs.len(), 2);
         assert_eq!(ctxs.ignored(), 0);
 
-        let mut ctxs2 = Contextuals::new(trisult::AllState::new());
+        let mut ctxs2 = Contextuals::new(All::create_state());
         ctxs2.push_naive(Contextual::new(NoLoc, Val(3)));
         ctxs.append_naive(ctxs2.clone());
         ctxs.append(ctxs2.clone());
@@ -332,8 +328,8 @@ fn test_diagnosis_warning() {
 
     // append with empty
     {
-        let mut diags = Diagnoses::<W, E>::new(All::create_state());
-        let empty_other = Contextuals::new(All::create_state());
+        let mut diags = Diagnoses::new(All::create_state::<Diagnosis<W, E>, NoLoc>());
+        let empty_other = Contextuals::new(All::create_state::<W, NoLoc>());
         diags.append_warnings(empty_other);
 
         let mapped_diags = diags.map_diagnosis(|w| W(w.0 + 1), |e| E(e.0 + 1));
@@ -381,15 +377,14 @@ fn test_diagnosis_error() {
 
 #[test]
 fn test_trisult_exhaustive() {
-    let mut ok_diags = Diagnoses::new(trisult::AllState::new());
+    let mut ok_diags = Diagnoses::new(All::create_state());
     ok_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Warning(W(1))));
-    let ok: Trisult<i32, W, E, NoLoc, trisult::AllState<Diagnosis<W, E>, NoLoc>> =
+    let ok: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> =
         Trisult::Ok(Diagnosed(10, ok_diags.unwrap_as_warnings()));
 
-    let mut err_diags = Diagnoses::new(trisult::AllState::new());
+    let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
-    let err: Trisult<i32, W, E, NoLoc, trisult::AllState<Diagnosis<W, E>, NoLoc>> =
-        Trisult::Err(err_diags);
+    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err(err_diags);
 
     // is_ok, is_err
     assert!(ok.is_ok());
@@ -422,20 +417,21 @@ fn test_trisult_exhaustive() {
     // and_then combinations
     let ok_to_ok = ok
         .clone()
-        .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(trisult::AllState::new()))));
+        .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(All::create_state()))));
     assert!(ok_to_ok.is_ok());
 
-    let ok_empty = Trisult::<i32, W, E, NoLoc, trisult::AllState<Diagnosis<W, E>, NoLoc>>::Ok(
-        Diagnosed(5, Contextuals::new(trisult::AllState::new())),
-    );
+    let ok_empty = Trisult::<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>>::Ok(Diagnosed(
+        5,
+        Contextuals::new(All::create_state()),
+    ));
     let ok_empty_to_ok_empty = ok_empty
         .clone()
-        .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(trisult::AllState::new()))));
+        .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(All::create_state()))));
     assert!(ok_empty_to_ok_empty.is_ok());
 
     let ok_empty_to_ok_warns = ok_empty.clone().and_then(|x| {
         Trisult::Ok(Diagnosed(x + 1, {
-            let mut d = Diagnoses::new(trisult::AllState::new());
+            let mut d = Diagnoses::new(All::create_state());
             d.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Warning(W(1))));
             d.unwrap_as_warnings()
         }))
@@ -447,7 +443,7 @@ fn test_trisult_exhaustive() {
 
     let err_to_ok = err
         .clone()
-        .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(trisult::AllState::new()))));
+        .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(All::create_state()))));
     assert!(err_to_ok.is_err());
 
     // map combinations
@@ -471,34 +467,32 @@ fn test_trisult_exhaustive() {
 #[test]
 #[should_panic]
 fn test_trisult_expect_panic() {
-    let mut err_diags = Diagnoses::new(trisult::AllState::new());
+    let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
-    let err: Trisult<i32, W, E, NoLoc, trisult::AllState<Diagnosis<W, E>, NoLoc>> =
-        Trisult::Err(err_diags);
+    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err(err_diags);
     err.expect("Expected panic");
 }
 
 #[test]
 #[should_panic]
 fn test_trisult_unwrap_panic() {
-    let mut err_diags = Diagnoses::new(trisult::AllState::new());
+    let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
-    let err: Trisult<i32, W, E, NoLoc, trisult::AllState<Diagnosis<W, E>, NoLoc>> =
-        Trisult::Err(err_diags);
+    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err(err_diags);
     err.unwrap();
 }
 
 #[test]
 #[should_panic]
 fn test_unwrap_as_warnings_panic() {
-    let mut err_diags = Diagnoses::new(trisult::AllState::new());
+    let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
     err_diags.unwrap_as_warnings();
 }
 
 #[test]
 fn test_iterators() {
-    let mut err_diags = Diagnoses::new(trisult::AllState::new());
+    let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Warning(W(1))));
 
     let diag_iter = err_diags.clone().into_iter();
@@ -525,7 +519,7 @@ fn test_tri_unpack_with_existing_diags_append() {
     let mut diags = Diagnoses::new(All::create_state());
     let mut has_errors = true; // Simulating we already have an error
 
-    let err: Trisult<i32, W, E, NoLoc, trisult::AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err({
+    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err({
         let mut d = Diagnoses::new(All::create_state());
         d.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
         d

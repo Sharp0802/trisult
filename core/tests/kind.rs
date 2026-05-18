@@ -8,7 +8,7 @@ use trisult::All;
 
 #[allow(type_alias_bounds)]
 pub type MockResult<T, A: Acc = Default> =
-    Trisult<T, MockWarn, MockErr, String, A::Acc<Diagnosis<MockWarn, MockErr>, String>>;
+    Trisult<T, MockWarn, MockErr, A::Acc<Diagnosis<MockWarn, MockErr>, String>>;
 
 #[trisult(segment = "warn_node")]
 fn multiple_warnings<#[kind] T: Acc>(#[context] stack: &mut TraceStack) -> MockResult<i32, T> {

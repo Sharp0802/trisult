@@ -5,6 +5,7 @@ use crate::{Acc, AccState, Contextual, ContextualIter, Prioritized};
 pub struct Most;
 
 /// An accumulator that collects only a single item (highest priority).
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MostAcc<T, C>(Option<Contextual<T, C>>);
 
 impl Acc for Most {
@@ -100,6 +101,7 @@ impl<T, C> IntoIterator for MostAcc<T, C> {
     type Item = Contextual<T, C>;
     type IntoIter = core::option::IntoIter<Contextual<T, C>>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }

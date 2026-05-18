@@ -1,4 +1,4 @@
-use crate::{Acc, AccState, CapturedContext, Contextual, Contextuals, MapDiagnosis, Prioritized};
+use crate::{Acc, AccState, Contextual, Contextuals, MapDiagnosis, Prioritized};
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 
@@ -113,7 +113,7 @@ impl<W: Error + 'static, E: Error + 'static> Error for Diagnosis<W, E> {
 /// A convenience alias for a `Contextual` holding a `Diagnosis`.
 pub type ContextualDiagnosis<W, E, C> = Contextual<Diagnosis<W, E>, C>;
 
-impl<W, E, C: CapturedContext> ContextualDiagnosis<W, E, C> {
+impl<W, E, C> ContextualDiagnosis<W, E, C> {
     /// Returns the contained warning, coupled with its context, if it is a `Warning`.
     #[inline]
     pub const fn as_warning(&self) -> Option<Contextual<&W, &C>> {
@@ -133,7 +133,7 @@ impl<W, E, C: CapturedContext> ContextualDiagnosis<W, E, C> {
     }
 }
 
-impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for ContextualDiagnosis<W, E, C> {
+impl<W, E, C> MapDiagnosis<W, E> for ContextualDiagnosis<W, E, C> {
     type Target<UW, UE, FW, FE>
         = ContextualDiagnosis<UW, UE, C>
     where
@@ -151,12 +151,11 @@ impl<W, E, C: CapturedContext> MapDiagnosis<W, E> for ContextualDiagnosis<W, E, 
 }
 
 /// A convenience alias for an accumulator of `Diagnosis` items.
-pub type Diagnoses<W, E, C, A> = Contextuals<Diagnosis<W, E>, C, A>;
+pub type Diagnoses<A> = Contextuals<A>;
 
-impl<W, E, C, A> Diagnoses<W, E, C, A>
+impl<W, E, C, A> Diagnoses<A>
 where
-    C: CapturedContext,
-    A: AccState<Diagnosis<W, E>, C>,
+    A: AccState<Type = Diagnosis<W, E>, Context = C>,
 {
     /// Maps `Diagnosis<W, E>` into `W`.
     ///
@@ -164,7 +163,7 @@ where
     ///
     /// Panics if it contains any error value.
     #[inline]
-    pub fn unwrap_as_warnings(self) -> Contextuals<W, C, <A::Alloc as Acc>::Acc<W, C>> {
+    pub fn unwrap_as_warnings(self) -> Contextuals<<A::Alloc as Acc>::Acc<W, C>> {
         if self.is_empty() {
             Contextuals::new(A::Alloc::create_state::<W, C>())
         } else {
@@ -174,7 +173,7 @@ where
 
     /// Appends warnings, mapping them to `Diagnosis`.
     #[inline]
-    pub fn append_warnings(&mut self, warnings: Contextuals<W, C, <A::Alloc as Acc>::Acc<W, C>>) {
+    pub fn append_warnings(&mut self, warnings: Contextuals<<A::Alloc as Acc>::Acc<W, C>>) {
         if warnings.is_empty() {
             return;
         }
@@ -187,11 +186,12 @@ where
     }
 }
 
-impl<W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> MapDiagnosis<W, E>
-    for Diagnoses<W, E, C, A>
+impl<W, E, C, A> MapDiagnosis<W, E> for Diagnoses<A>
+where
+    A: AccState<Type = Diagnosis<W, E>, Context = C>,
 {
     type Target<UW, UE, FW, FE>
-        = Diagnoses<UW, UE, C, <A::Alloc as Acc>::Acc<Diagnosis<UW, UE>, C>>
+        = Diagnoses<<A::Alloc as Acc>::Acc<Diagnosis<UW, UE>, C>>
     where
         FW: FnMut(W) -> UW,
         FE: FnMut(E) -> UE;
@@ -208,9 +208,9 @@ impl<W, E, C: CapturedContext, A: AccState<Diagnosis<W, E>, C>> MapDiagnosis<W, 
 
 /// A successful value coupled with any accumulated warnings.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Diagnosed<T, W, C: CapturedContext, A: AccState<W, C>>(
+pub struct Diagnosed<T, A>(
     /// The successful value.
     pub T,
     /// Accumulated warnings that occurred during execution.
-    pub Contextuals<W, C, A>,
+    pub Contextuals<A>,
 );
