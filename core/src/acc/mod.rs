@@ -101,9 +101,9 @@ macro_rules! custom_trisult {
     (@last $f:tt $(, $g:tt = $val:tt )*) => { $f };
     (@last $f:tt $(, $g:tt $(= $val:tt)? )*) => { custom_trisult!(@last $($g $(= $val)?),*) };
 
-    ($name:ident< $($tt:tt $(= $val:tt)?),+ >($warn:ty, $err:ty, $ctx:ty)) => {
+    ($vis:vis $name:ident< $($tt:tt $(= $val:tt)?),+ >($warn:ty, $err:ty, $ctx:ty)) => {
         #[allow(type_alias_bounds)]
-        type $name<$($tt $(= $val)? ,)+ A: ::trisult::AccAlloc = ::trisult::Default> = ::trisult::Trisult<
+        $vis type $name<$($tt $(= $val)? ,)+ A: ::trisult::AccAlloc = ::trisult::Default> = ::trisult::Trisult<
             custom_trisult!(@last $($tt $(= $val)?),+),
             $warn,
             $err,
