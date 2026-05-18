@@ -53,7 +53,7 @@ First, add `trisult` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-trisult = "0.3"
+trisult = "0.4"
 ```
 
 ### Manual Accumulation
