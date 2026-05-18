@@ -22,16 +22,19 @@ pub type Default = DefaultImpl;
 /// A trait for statically passing accumulator policy.
 pub trait Acc {
     /// An accumulator type to allocate.
-    type Acc<T, C: CapturedContext>: AccState<T, C, Alloc = Self>;
+    type Acc<T, C>: AccState<Type = T, Context = C, Alloc = Self>;
 
     /// Create new, empty accumulator state for given types.
-    fn create_state<T, C: CapturedContext>() -> Self::Acc<T, C>;
+    fn create_state<T, C>() -> Self::Acc<T, C>;
 }
 
 /// The internal state of an accumulator.
-pub trait AccState<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, C>> {
+pub trait AccState: IntoIterator<Item = Contextual<Self::Type, Self::Context>> {
+    type Type;
+    type Context;
+
     /// An allocator used to allocate this accumulator.
-    type Alloc: Acc<Acc<T, C> = Self>;
+    type Alloc: Acc<Acc<Self::Type, Self::Context> = Self>;
 
     /// Returns `true` if the accumulator contains no items.
     fn is_empty(&self) -> bool;
@@ -40,10 +43,13 @@ pub trait AccState<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, C>>
     fn len(&self) -> usize;
 
     /// Returns an iterator over the accumulated contextual items.
-    fn iter(&'_ self) -> ContextualIter<'_, T, C>;
+    fn iter(&'_ self) -> ContextualIter<'_, Self::Type, Self::Context>;
 
     /// Maps the accumulated values using the given closure.
-    fn map<U>(self, map: impl FnMut(T) -> U) -> <Self::Alloc as Acc>::Acc<U, C>;
+    fn map<U>(
+        self,
+        map: impl FnMut(Self::Type) -> U,
+    ) -> <Self::Alloc as Acc>::Acc<U, Self::Context>;
 
     /// Reserves capacity for at least `additional` more elements to be inserted.
     fn reserve(&mut self, additional: usize);
@@ -51,7 +57,7 @@ pub trait AccState<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, C>>
     /// Pushes a value into the accumulator without checking priorities.
     /// Returns `true` if the item was added, or `false` if it was ignored
     /// (e.g., when pushing to an already-occupied `Most` state).
-    fn push_naive(&mut self, value: Contextual<T, C>) -> bool;
+    fn push_naive(&mut self, value: Contextual<Self::Type, Self::Context>) -> bool;
 
     /// Appends the contents of another state into this one naively (ignoring priorities).
     /// Returns the number of items that were ignored.
@@ -60,15 +66,15 @@ pub trait AccState<T, C: CapturedContext>: IntoIterator<Item = Contextual<T, C>>
     /// Pushes a value into the accumulator, respecting item priorities.
     /// In a `Most` state, an item will overwrite the existing item if it has a strictly higher priority.
     /// Returns `true` if the item was stored, `false` otherwise.
-    fn push(&mut self, value: Contextual<T, C>) -> bool
+    fn push(&mut self, value: Contextual<Self::Type, Self::Context>) -> bool
     where
-        T: Prioritized;
+        Self::Type: Prioritized;
 
     /// Appends the contents of another state into this one, respecting priorities.
     /// Returns the number of items that were ignored.
     fn append(&mut self, other: Self) -> usize
     where
-        T: Prioritized;
+        Self::Type: Prioritized;
 }
 
 /// Defines a custom trisult type.

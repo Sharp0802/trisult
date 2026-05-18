@@ -8,58 +8,69 @@ use smallvec::SmallVec;
 pub struct All;
 
 /// An accumulator that collects all items.
-pub type AllState<T, C> = SmallVec<Contextual<T, C>, VEC_SIZE>;
+pub struct AllState<T, C>(SmallVec<Contextual<T, C>, VEC_SIZE>);
 
 impl Acc for All {
-    type Acc<T, C: CapturedContext> = AllState<T, C>;
+    type Acc<T, C> = AllState<T, C>;
 
     #[inline]
-    fn create_state<T, C: CapturedContext>() -> Self::Acc<T, C> {
-        SmallVec::new()
+    fn create_state<T, C>() -> Self::Acc<T, C> {
+        AllState(SmallVec::new())
     }
 }
 
-impl<T, C: CapturedContext> AccState<T, C> for AllState<T, C> {
+impl<T, C> IntoIterator for AllState<T, C> {
+    type Item = Contextual<T, C>;
+    type IntoIter = smallvec::IntoIter<Self::Item, VEC_SIZE>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<T, C> AccState for AllState<T, C> {
+    type Type = T;
+    type Context = C;
     type Alloc = All;
 
     #[inline]
     fn is_empty(&self) -> bool {
-        self.is_empty()
+        self.0.is_empty()
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.len()
+        self.0.len()
     }
 
     #[inline]
     fn iter(&'_ self) -> ContextualIter<'_, T, C> {
-        ContextualIter::new(self)
+        ContextualIter::new(&self.0)
     }
 
     #[inline]
     fn map<U>(self, mut map: impl FnMut(T) -> U) -> <Self::Alloc as Acc>::Acc<U, C> {
         if self.is_empty() {
-            return SmallVec::new();
+            return AllState(SmallVec::new());
         }
 
-        self.into_iter().map(|ct| ct.map(&mut map)).collect()
+        AllState(self.into_iter().map(|ct| ct.map(&mut map)).collect())
     }
 
     #[inline]
     fn reserve(&mut self, additional: usize) {
-        self.reserve(additional);
+        self.0.reserve(additional);
     }
 
     #[inline]
     fn push_naive(&mut self, value: Contextual<T, C>) -> bool {
-        self.push(value);
+        self.0.push(value);
         true
     }
 
     #[inline]
     fn append_naive(&mut self, mut other: Self) -> usize {
-        self.append(&mut other);
+        self.0.append(&mut other.0);
         0
     }
 

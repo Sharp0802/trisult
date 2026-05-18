@@ -1,42 +1,44 @@
-use crate::{Acc, AccState, CapturedContext, Contextual, ContextualIter, Prioritized};
+use crate::{Acc, AccState, Contextual, ContextualIter, Prioritized};
 
 /// An allocator for an accumulator that collects only a single item (highest priority).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Most;
 
 /// An accumulator that collects only a single item (highest priority).
-pub type MostAcc<T, C> = Option<Contextual<T, C>>;
+pub struct MostAcc<T, C>(Option<Contextual<T, C>>);
 
 impl Acc for Most {
-    type Acc<T, C: CapturedContext> = MostAcc<T, C>;
+    type Acc<T, C> = MostAcc<T, C>;
 
     #[inline]
-    fn create_state<T, C: CapturedContext>() -> Self::Acc<T, C> {
-        None
+    fn create_state<T, C>() -> Self::Acc<T, C> {
+        MostAcc(None)
     }
 }
 
-impl<T, C: CapturedContext> AccState<T, C> for MostAcc<T, C> {
+impl<T, C> AccState for MostAcc<T, C> {
+    type Type = T;
+    type Context = C;
     type Alloc = Most;
 
     #[inline]
     fn is_empty(&self) -> bool {
-        self.is_none()
+        self.0.is_none()
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.as_slice().len()
+        self.0.as_slice().len()
     }
 
     #[inline]
     fn iter(&'_ self) -> ContextualIter<'_, T, C> {
-        ContextualIter::new(self.as_slice())
+        ContextualIter::new(self.0.as_slice())
     }
 
     #[inline]
     fn map<U>(self, map: impl FnMut(T) -> U) -> <Self::Alloc as Acc>::Acc<U, C> {
-        self.map(|ct| ct.map(map))
+        MostAcc(self.0.map(|ct| ct.map(map)))
     }
 
     #[inline]
@@ -44,8 +46,8 @@ impl<T, C: CapturedContext> AccState<T, C> for MostAcc<T, C> {
 
     #[inline]
     fn push_naive(&mut self, value: Contextual<T, C>) -> bool {
-        if self.is_none() {
-            *self = Some(value);
+        if self.0.is_none() {
+            self.0 = Some(value);
             true
         } else {
             false
@@ -54,10 +56,10 @@ impl<T, C: CapturedContext> AccState<T, C> for MostAcc<T, C> {
 
     #[inline]
     fn append_naive(&mut self, other: Self) -> usize {
-        match self {
+        match &mut self.0 {
             Some(_) => other.len(),
             this => {
-                *this = other;
+                *this = other.0;
                 0
             }
         }
@@ -68,7 +70,7 @@ impl<T, C: CapturedContext> AccState<T, C> for MostAcc<T, C> {
     where
         T: Prioritized,
     {
-        match self {
+        match &mut self.0 {
             Some(old) if old.priority() < value.priority() => {
                 *old = value;
                 false
@@ -86,10 +88,19 @@ impl<T, C: CapturedContext> AccState<T, C> for MostAcc<T, C> {
     where
         T: Prioritized,
     {
-        let Some(other) = other else {
+        let Some(other) = other.0 else {
             return 0;
         };
 
         (!self.push(other)).into()
+    }
+}
+
+impl<T, C> IntoIterator for MostAcc<T, C> {
+    type Item = Contextual<T, C>;
+    type IntoIter = core::option::IntoIter<Contextual<T, C>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
