@@ -3,7 +3,7 @@ mod shared;
 use crate::shared::span::{Offset, Span};
 use std::ops::Deref;
 use thiserror::Error;
-use trisult::{trisult, Acc, Default, Diagnosed, Diagnosis, Trisult};
+use trisult::{trisult, Default, Diagnosed, Diagnosis, Trisult};
 
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ConfigWarn {
@@ -21,12 +21,7 @@ pub enum ConfigErr {
     InvalidFormat(&'static str),
 }
 
-pub type ConfigResult<T> = Trisult<
-    T,
-    ConfigWarn,
-    ConfigErr,
-    <Default as Acc>::Acc<Diagnosis<ConfigWarn, ConfigErr>, Offset>,
->;
+pub type ConfigResult<T> = Trisult<T, ConfigWarn, ConfigErr, Offset, Default>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Config {

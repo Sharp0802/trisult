@@ -65,8 +65,7 @@ impl ContextStackMut for NodeContext {
     fn pop(&mut self) {}
 }
 
-pub type HealthResult<T, A> =
-    Trisult<T, HealthWarn, HealthErr, <A as Acc>::Acc<Diagnosis<HealthWarn, HealthErr>, String>>;
+pub type HealthResult<T, A> = Trisult<T, HealthWarn, HealthErr, String, A>;
 
 #[trisult(segment = node_name.to_string())]
 fn check_node<#[kind] A: Acc>(

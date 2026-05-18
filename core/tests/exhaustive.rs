@@ -3,8 +3,8 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use trisult::{
-    Acc, AccState, All, AllState, Contextual, ContextualDiagnosis, Contextuals, Diagnosed,
-    Diagnoses, Diagnosis, MapDiagnosis, Most, NoLoc, Prioritized, Trisult,
+    Acc, AccState, All, Contextual, ContextualDiagnosis, Contextuals, Diagnosed, Diagnoses,
+    Diagnosis, MapDiagnosis, Most, NoLoc, Prioritized, Trisult,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -379,12 +379,12 @@ fn test_diagnosis_error() {
 fn test_trisult_exhaustive() {
     let mut ok_diags = Diagnoses::new(All::create_state());
     ok_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Warning(W(1))));
-    let ok: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> =
+    let ok: Trisult<i32, W, E, NoLoc, All> =
         Trisult::Ok(Diagnosed(10, ok_diags.unwrap_as_warnings()));
 
     let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
-    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err(err_diags);
+    let err: Trisult<i32, W, E, NoLoc, All> = Trisult::Err(err_diags);
 
     // is_ok, is_err
     assert!(ok.is_ok());
@@ -420,10 +420,8 @@ fn test_trisult_exhaustive() {
         .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(All::create_state()))));
     assert!(ok_to_ok.is_ok());
 
-    let ok_empty = Trisult::<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>>::Ok(Diagnosed(
-        5,
-        Contextuals::new(All::create_state()),
-    ));
+    let ok_empty =
+        Trisult::<i32, W, E, NoLoc, All>::Ok(Diagnosed(5, Contextuals::new(All::create_state())));
     let ok_empty_to_ok_empty = ok_empty
         .clone()
         .and_then(|x| Trisult::Ok(Diagnosed(x + 1, Contextuals::new(All::create_state()))));
@@ -469,7 +467,7 @@ fn test_trisult_exhaustive() {
 fn test_trisult_expect_panic() {
     let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
-    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err(err_diags);
+    let err: Trisult<i32, W, E, NoLoc, All> = Trisult::Err(err_diags);
     err.expect("Expected panic");
 }
 
@@ -478,7 +476,7 @@ fn test_trisult_expect_panic() {
 fn test_trisult_unwrap_panic() {
     let mut err_diags = Diagnoses::new(All::create_state());
     err_diags.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
-    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err(err_diags);
+    let err: Trisult<i32, W, E, NoLoc, All> = Trisult::Err(err_diags);
     err.unwrap();
 }
 
@@ -519,7 +517,7 @@ fn test_tri_unpack_with_existing_diags_append() {
     let mut diags = Diagnoses::new(All::create_state());
     let mut has_errors = true; // Simulating we already have an error
 
-    let err: Trisult<i32, W, E, AllState<Diagnosis<W, E>, NoLoc>> = Trisult::Err({
+    let err: Trisult<i32, W, E, NoLoc, All> = Trisult::Err({
         let mut d = Diagnoses::new(All::create_state());
         d.push(Contextual::new(NoLoc, Diagnosis::<W, E>::Error(E(2))));
         d

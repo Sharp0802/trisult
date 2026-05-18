@@ -1,5 +1,5 @@
 use thiserror::Error;
-use trisult::{Acc, ContextStack, ContextStackMut, Default, Diagnosis, Trisult};
+use trisult::{ContextStack, ContextStackMut, Default, Trisult};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[allow(unused)]
@@ -47,5 +47,4 @@ pub enum MockErr {
 }
 
 #[allow(unused)]
-pub type MockResult<T> =
-    Trisult<T, MockWarn, MockErr, <Default as Acc>::Acc<Diagnosis<MockWarn, MockErr>, String>>;
+pub type MockResult<T> = Trisult<T, MockWarn, MockErr, String, Default>;

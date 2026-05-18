@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use trisult::{
-    trisult, Acc, ContextStack, ContextStackMut, Default, Diagnosed, Diagnosis, Trisult,
+    trisult, ContextStack, ContextStackMut, Default, Diagnosed, Diagnosis, Trisult,
 };
 
 /// A custom context stack to keep track of JSON paths (e.g., `$.tags.[1]`).
@@ -109,8 +109,7 @@ pub enum ValErr {
     },
 }
 
-pub type ValResult<T> =
-    Trisult<T, ValWarn, ValErr, <Default as Acc>::Acc<Diagnosis<ValWarn, ValErr>, String>>;
+pub type ValResult<T> = Trisult<T, ValWarn, ValErr, String, Default>;
 
 #[trisult]
 fn expect_object<'a>(

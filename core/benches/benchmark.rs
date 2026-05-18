@@ -10,7 +10,7 @@ type ErrorTy = &'static str;
 type WarnTy = &'static str;
 
 #[allow(type_alias_bounds)]
-type Tri<T, A: Acc> = Trisult<T, WarnTy, ErrorTy, A::Acc<Diagnosis<WarnTy, ErrorTy>, NoLoc>>;
+type Tri<T, A: Acc> = Trisult<T, WarnTy, ErrorTy, NoLoc, A>;
 
 // ============================================================================
 // IMPLEMENTATIONS
